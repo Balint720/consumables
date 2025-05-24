@@ -59,7 +59,8 @@ MonoBehaviour:
   - {x: -5, y: 0}
   - {x: -5, y: -5}
   - {x: 0, y: -5}
-  - {x: -5, y: -5}
+  - {x: 5, y: -5}
+  recoilRecoveryTime: 0.8
   bloom: 0
   rpm: 300
   range: 1000

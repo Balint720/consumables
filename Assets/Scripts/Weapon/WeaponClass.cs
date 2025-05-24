@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -66,26 +67,20 @@ public class WeaponClass : MonoBehaviour
         lastFireTime = 0.0f;
     }
 
-    void ShootHitScan(Vector3 origin, Vector3 direction, Quaternion rotation)
+    RaycastHit ShootHitScan(Vector3 origin, Vector3 direction, Quaternion rotation)
     {
-        Debug.Log("Origin: " + origin.ToString());
-        Debug.Log("Direction: " + direction.ToString());
-
-        Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y);
-        Vector3 offsetDir = Vector3.Normalize(origin + 50 * direction - offsetOrigin);
-
+        // Shoot ray into direction from origin with a maximum range
         RaycastHit hitInfo;
-        if (Physics.Raycast(origin, direction, out hitInfo, range))
-        {
-            Debug.Log("Hit target " + hitInfo.collider);
-            offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
-        }
+        Physics.Raycast(origin, direction, out hitInfo, range);
 
-        if (hitscanProjectile != null)
-        {
-            ProjectileClass p = Instantiate(hitscanProjectile, offsetOrigin, rotation);
-            p.SetDirection(offsetDir);
-        }
+        return hitInfo;
+    }
+
+    void ShootProjectile(Vector3 origin, Vector3 direction, Quaternion rotation)
+    {
+        // Set the direction and offset IF there is a hitscanProjectile
+        ProjectileClass p = Instantiate(hitscanProjectile, origin, rotation);
+        p.SetDirection(direction);
     }
 
     void ShootHitScan(Camera cam)
@@ -176,6 +171,7 @@ public class WeaponClass : MonoBehaviour
         if (sinceLastFire > 60.0f / rpm)
         {
             lastFireTime = Time.time;
+            RaycastHit hitInfo;
             // Different methods for hitscan weapons, projectile weapons
             switch (weaponType)
             {
@@ -192,24 +188,47 @@ public class WeaponClass : MonoBehaviour
                             recoilInd = recoilPattern.Count - 1;
                         }
                     }
-                            ShootHitScan(origin, direction, rotation);
-                            addRot += new Vector2(-recoilPattern[recoilInd].x, recoilPattern[recoilInd].y);                            
-                            break;
+
+                    hitInfo = ShootHitScan(origin, direction, rotation);
+                    if (hitscanProjectile != null)
+                    {
+                        // Get point and direction from where the visual projectile should fire (gun barrel)
+                        // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
+                        Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y);
+                        Vector3 offsetDir = Vector3.Normalize(origin + 50 * direction - offsetOrigin);
+                        if (hitInfo.collider != null)
+                        {
+                            offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
+                        }
+
+                        // Shoot the projectile with the calculated direction and point with offset
+                        ShootProjectile(offsetOrigin, offsetDir, rotation);
+                    }
+                    addRot += new Vector2(-recoilPattern[recoilInd].x, recoilPattern[recoilInd].y);
+                    break;
 
                 case WeaponType.HITSCAN_SPREAD:
-                    Debug.Log("Direction vector: " + direction);
-
+                    // Shoot the pelCount amount of pellets
                     for (int i = 0; i < pelCount; i++)
                     {
-                        /*
-                        Vector3 pelDir = Quaternion.Euler(recoilPattern[i].x, recoilPattern[i].y, 0.0f) * Vector3.forward;
-                        Quaternion worldToLocalRotate = Quaternion.FromToRotation(Vector3.forward, direction);
-                        pelDir = Quaternion.Euler(worldToLocalRotate.eulerAngles.x, worldToLocalRotate.eulerAngles.y, 0.0f) * pelDir;
-                        Quaternion pelRot = Quaternion.Euler(recoilPattern[i].x, recoilPattern[i].y, 0.0f) * rotation;
-                        */
+                        // Calculate pellet direction and rotation
                         Vector3 pelDir = CalcRecoiledDir(direction, i);
                         Quaternion pelRot = CalcRecoiledRot(rotation, i);
-                        ShootHitScan(origin, pelDir, pelRot);
+
+                        // Shoot pellet's ray
+                        hitInfo = ShootHitScan(origin, pelDir, pelRot);
+                        if (hitscanProjectile != null) {
+                            // Get point and direction from where the visual projectile should fire (gun barrel)
+                            // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
+                            Vector3 offsetOrigin = origin + pelRot * new Vector3(offset.x, offset.y);
+                            Vector3 offsetDir = Vector3.Normalize(origin + 50 * pelDir - offsetOrigin);
+                            if (hitInfo.collider != null)
+                            {
+                                offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
+                            }
+                            // Shoot the projectile with the calculated direction and point with offset
+                            ShootProjectile(offsetOrigin, offsetDir, rotation);
+                        }
                     }
                     break;
             }

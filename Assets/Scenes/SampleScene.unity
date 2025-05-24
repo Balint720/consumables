@@ -876,9 +876,10 @@ MonoBehaviour:
   cam: {fileID: 330585549}
   sens: 0.4
   inputBuffer: 0.2
-  pistol: {fileID: 4034869576873527731, guid: 90f85ac22cfa31345bd9f02b8c26395c, type: 3}
-  shotgun: {fileID: 4034869576873527731, guid: c0811ae3f4cff0748b735dae075e8804, type: 3}
-  assRifle: {fileID: 4034869576873527731, guid: 288bd8733ed0a544faf0d9aa06e2902f, type: 3}
+  weapon:
+  - {fileID: 4034869576873527731, guid: 90f85ac22cfa31345bd9f02b8c26395c, type: 3}
+  - {fileID: 4034869576873527731, guid: c0811ae3f4cff0748b735dae075e8804, type: 3}
+  - {fileID: 4034869576873527731, guid: 288bd8733ed0a544faf0d9aa06e2902f, type: 3}
 --- !u!143 &550961129
 CharacterController:
   m_ObjectHideFlags: 0

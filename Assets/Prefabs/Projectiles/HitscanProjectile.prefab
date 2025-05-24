@@ -50,7 +50,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   speed: 20
   accel: 0
-  range: 200
+  range: 50
 --- !u!65 &-3455010836631240250
 BoxCollider:
   m_ObjectHideFlags: 0

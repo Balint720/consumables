@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -44,10 +45,10 @@ public class PlayerControl : EntityClass
 
     State movState = State.AIRBORNE;
 
-    // Weapon
-    public WeaponClass pistol;
-    public WeaponClass shotgun;
-    public WeaponClass assRifle;
+    // Weapons
+    public List<WeaponClass> weapon;
+
+    private int equippedItem;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -73,9 +74,12 @@ public class PlayerControl : EntityClass
         charCont = GetComponent<CharacterController>();
         movHitBox = GetComponent<CapsuleCollider>();
 
-        pistol.SetLastFireTime(0.0f);
-        shotgun.SetLastFireTime(0.0f);
-        assRifle.SetLastFireTime(0.0f);
+        // Default values
+        equippedItem = 0;
+        for (int i = 0; i < weapon.Count; i++)
+        {
+            weapon[i].SetLastFireTime(0.0f);
+        }
     }
 
     // Update is called once per frame
@@ -121,12 +125,11 @@ public class PlayerControl : EntityClass
         {
             if (context.action == invInput[i])
             {
+                equippedItem = i;
                 slot = i + 1;
                 break;
             }
         }
-
-        Debug.Log("Pressed " + slot.ToString());
     }
 
     void CalcMovement(Vector2 moveVect)
@@ -134,15 +137,13 @@ public class PlayerControl : EntityClass
         // Calculate speed
         // Get current forwards and sideways speed
         float forwardsSpeed = Vector3.Dot(charCont.velocity, transform.forward);
-        float sideSpeed = Vector3.Dot(charCont.velocity, transform.right);
-        float vertSpeed = Vector3.Dot(speed, new Vector3(0, 1, 0));
+        float sideSpeed = Vector3.Dot(charCont.velocity, transform.right);                      // We get these from the real speed of the character because sliding off of walls would make us shoot off them with max speed as soon as we are no longer colliding with them
+        float vertSpeed = Vector3.Dot(speed, new Vector3(0, 1, 0));                             // We get this from the "theoretical" speed vector because we want to keep negative speed while on the ground (shitty collision solution for walking down ramps)
 
         // State on previous frame
         State prevFrame = movState;
 
         // Set state based on if ground beneath
-        //RaycastHit hitInfo = new RaycastHit();
-        //if (Physics.SphereCast(movHitBox.transform.position, movHitBox.radius, new Vector3(0, -1, 0), out hitInfo, 1.0f, (1 << 7)))
         if (charCont.isGrounded)
         {
             movState = State.GROUNDED;
@@ -156,36 +157,6 @@ public class PlayerControl : EntityClass
         SpeedCalc(ref forwardsSpeed, moveVect.y);
         SpeedCalc(ref sideSpeed, moveVect.x);
 
-        /*
-        // Calculate new speed based on state
-        switch (movState)
-        {
-            case State.GROUNDED:
-                // Horizontal speed
-                speed = forwardsSpeed * transform.forward + sideSpeed * transform.right;
-
-                // Vertical speed calculation
-                if (jumpInput.IsPressed())
-                {
-                    vertSpeed = VSpeedCap;
-                    speed += new Vector3(0, vertSpeed, 0);
-                }
-                else
-                {
-                    if (Physics.SphereCast(movHitBox.transform.position + speed, movHitBox.radius, new Vector3(0, -1, 0), out hitInfo, 1.0f, (1 << 7)))
-                    {
-                        vertSpeed -= 2 * grav * Time.fixedDeltaTime;
-                        speed += new Vector3(0, vertSpeed, 0);
-                    }
-                }
-                break;
-            case State.AIRBORNE:
-                vertSpeed -= grav * Time.fixedDeltaTime;
-                speed = forwardsSpeed * transform.forward + sideSpeed * transform.right + new Vector3(0, vertSpeed, 0);
-                break;
-        }
-
-        */
         // Calculate vertical speed based on state
         switch (movState)
         {
@@ -210,7 +181,6 @@ public class PlayerControl : EntityClass
         }
 
         speed = forwardsSpeed * transform.forward + sideSpeed * transform.right + new Vector3(0, vertSpeed, 0);
-        DebugText.text = speed.ToString();
 
         // Handle gravity and jumping IF the character is touching the ground
 
@@ -252,21 +222,25 @@ public class PlayerControl : EntityClass
 
     void DoAttack()
     {
-        switch (assRifle.GetFiringMode())
+        bool canShoot;
+        switch (weapon[equippedItem].GetFiringMode())
         {
             case WeaponClass.FiringMode.SEMI:
-                if (attackPressed)
-                {
-                    shotgun.Fire(cam, ref rotation);
-                }
+                canShoot = attackPressed;
                 break;
             case WeaponClass.FiringMode.AUTO:
-                if (attackInput.IsPressed())
-                {
-                    assRifle.Fire(cam, ref addedRotation);
-                }
+                canShoot = attackInput.IsPressed();
+                break;
+            default:
+                canShoot = true;
                 break;
         }
+
+        if (canShoot)
+        {
+            weapon[equippedItem].Fire(cam, ref addedRotation);
+        }
+
         attackPressed = false;
     }
 
