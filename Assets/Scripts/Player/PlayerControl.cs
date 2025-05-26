@@ -106,13 +106,11 @@ public class PlayerControl : EntityClass
 
     void InvCallBack(InputAction.CallbackContext context)
     {
-        int slot = 0;
         for (int i = 0; i < 3; i++)
         {
             if (context.action == invInput[i])
             {
                 equippedItem = i;
-                slot = i + 1;
                 break;
             }
         }
@@ -146,11 +144,12 @@ public class PlayerControl : EntityClass
                 break;
         }
 
+
         if (canShoot)
         {
-            weapon[equippedItem].Fire(cam, ref addedRotation);
+            weapon[equippedItem].Fire(cam, ref addedRotation, charCont.velocity*2*Time.fixedDeltaTime);
         }
-
+        
         attackPressed = false;
     }
 

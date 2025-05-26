@@ -92,16 +92,16 @@ public class WeaponClass : MonoBehaviour
         return fireMode;
     }
 
-    public void Fire(CameraControl cam, ref Vector2 addRot)
+    public void Fire(CameraControl cam, ref Vector2 addRot, Vector3 speed = new Vector3())
     {
         Vector3 origin = cam.transform.position;
         Vector3 direction = cam.transform.forward;
         Quaternion rotation = cam.transform.rotation;
 
-        Fire(origin, direction, rotation, ref addRot);
+        Fire(origin, direction, rotation, ref addRot, speed);
     }
 
-    public void Fire(Vector3 origin, Vector3 direction, Quaternion rotation, ref Vector2 addRot)
+    public void Fire(Vector3 origin, Vector3 direction, Quaternion rotation, ref Vector2 addRot, Vector3 speed = new Vector3())
     {
         // Get time in seconds since the last time the weapon fired
         float sinceLastFire = Time.time - lastFireTime;
@@ -149,7 +149,8 @@ public class WeaponClass : MonoBehaviour
                         {
                             offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
                         }
-
+                        // Test: Adding the speed of the shooter for better cosmetic projectile
+                        offsetOrigin += speed;
                         // Shoot the projectile with the calculated direction and point with offset
                         ShootProjectile(offsetOrigin, offsetDir, rotation);
                     }
@@ -190,7 +191,9 @@ public class WeaponClass : MonoBehaviour
                             {
                                 offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
                             }
-                            // Shoot the projectile with the calculated direction and point with offset
+                            // Test: Adding the speed of the shooter for better cosmetic projectile
+                            offsetOrigin += speed;
+                            // Shoot the projectile with the calculated direction and point with offset                           
                             ShootProjectile(offsetOrigin, offsetDir, rotation);
                         }
                     }
