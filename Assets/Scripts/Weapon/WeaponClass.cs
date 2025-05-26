@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -23,8 +24,8 @@ public class WeaponClass : MonoBehaviour
     public FiringMode fireMode;  // Basically, does holding down the mouse keep shooting or not
 
     // Stats
-    public float dmg = 1.0f;                    // Damage will be calculated for every bullet
-    float dmgMod = 1.0f;                        // Damage will be multiplied by this value
+    public int dmg = 1;                    // Damage will be calculated for every bullet
+    float dmgMod;                        // Damage will be multiplied by this value
     public uint pelCount;                       // Pellet count for shotguns
     int recoilInd;                             // Index of where we are in the recoil pattern
     float recoilValMod;                         // Recoil will be multiplied by this value
@@ -34,6 +35,8 @@ public class WeaponClass : MonoBehaviour
     float bloomMod;                             // Maximum bloom will be multiplied by this value
     public int rpm;                             // Fire rate: rounds per minute
     float rpmMod;                               // RPM will be multiplied by this value
+    public float knockbackStrength;
+    float knockbackMod;
     public float range;                         // Range of weapon, for hitscan this is the max distance of the raycast, for projectiles the projectile gets destroyed after traveling this many units
     public Vector3 offset;
 
@@ -47,24 +50,25 @@ public class WeaponClass : MonoBehaviour
     {
         weaponType = WeaponType.HITSCAN_SINGLE;
         fireMode = FiringMode.SEMI;
-        dmg = 1.0f;
-        dmgMod = 1.0f;
+        dmg = 1;
         pelCount = 1;
-        recoilInd = 0;
-        recoilValMod = 1.0f;
         recoilPattern = new List<Vector2>(1);
         recoilRecoveryTime = 0.8f;
         bloom = 0.0f;
-        bloomMod = 1.0f;
         rpm = 300;
-        rpmMod = 1.0f;
         range = 200.0f;
         offset = Vector3.zero;
     }
 
-    void Start()
+    public void Init()
     {
         lastFireTime = 0.0f;
+        dmgMod = 1.0f;
+        recoilInd = 0;
+        recoilValMod = 1.0f;
+        bloomMod = 1.0f;
+        rpmMod = 1.0f;
+        knockbackMod = 1.0f;
     }
 
     RaycastHit ShootHitScan(Vector3 origin, Vector3 direction, Quaternion rotation)
@@ -83,80 +87,10 @@ public class WeaponClass : MonoBehaviour
         p.SetDirection(direction);
     }
 
-    void ShootHitScan(Camera cam)
-    {
-        Vector3 origin = cam.transform.position;
-        Vector3 direction = cam.transform.forward;
-        Quaternion rotation = cam.transform.rotation;
-
-        Debug.Log("Origin: " + origin.ToString());
-        Debug.Log("Direction: " + direction.ToString());
-
-        Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y);
-        Vector3 offsetDir = Vector3.Normalize(origin + 50 * direction - offsetOrigin);
-
-        RaycastHit hitInfo;
-        if (Physics.Raycast(origin, direction, out hitInfo, range))
-        {
-            Debug.Log("Hit target " + hitInfo.collider);
-            offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
-        }
-
-        if (hitscanProjectile != null)
-        {
-            ProjectileClass p = Instantiate(hitscanProjectile, offsetOrigin, rotation);
-            p.SetDirection(offsetDir);
-        }
-    }
-
     public FiringMode GetFiringMode()
     {
         return fireMode;
     }
-
-    /*
-        public void Fire(Vector3 origin, Vector3 direction, Quaternion rotation)
-        {
-            float sinceLastFire = Time.time - lastFireTime;
-
-            if (sinceLastFire > rpm / 60.0f)
-            {
-                switch (weaponType)
-                {
-                    case WeaponType.HITSCAN_SINGLE:
-                        switch (fireMode)
-                        {
-                            case FiringMode.SEMI:
-                                ShootHitScan(origin, direction, rotation);
-                                break;
-                            case FiringMode.AUTO:
-                                break;
-                        }
-                        break;
-                    case WeaponType.HITSCAN_SPREAD:
-                        Debug.Log("Direction vector: " + direction);
-                        float rotationXAngle = Vector2.SignedAngle(new Vector2(1, 0), new Vector2(direction.z, direction.y));
-                        float rotationYAngle = Vector2.SignedAngle(new Vector2(0, 1), new Vector2(direction.x, direction.z));
-                        // Rotates world coordinate system to local where direction vector is Z forward
-                        Debug.Log("X Angle: " + rotationXAngle);
-                        Debug.Log("Y Angle: " + rotationYAngle);
-
-                        Vector3 rotatedRight = Quaternion.Euler(0.0f, rotationYAngle, 0.0f) * Vector3.right;                    // Right vector of local coordinate system
-                        Vector3 rotatedUp = Quaternion.Euler(rotationXAngle, 0.0f, 0.0f) * Vector3.up;                          // Up vector of local coordinate system
-
-                        for (int i = 0; i < pelCount; i++)
-                        {
-                            Vector3 pelDir = Quaternion.Euler(recoilPattern[i].y, recoilPattern[i].x, 0.0f) * Vector3.forward;
-                            Quaternion worldToLocalRotate = Quaternion.FromToRotation(Vector3.forward, direction);
-                            pelDir = Quaternion.Euler(worldToLocalRotate.eulerAngles.x, worldToLocalRotate.eulerAngles.y, 0.0f) * pelDir;
-                            ShootHitScan(origin, pelDir, rotation);
-                            //Debug.Log("Pellet direction " + i + ": " + pelDir);
-                        }
-                        break;
-                }
-            }
-        }
-        */
 
     public void Fire(CameraControl cam, ref Vector2 addRot)
     {
@@ -164,6 +98,11 @@ public class WeaponClass : MonoBehaviour
         Vector3 direction = cam.transform.forward;
         Quaternion rotation = cam.transform.rotation;
 
+        Fire(origin, direction, rotation, ref addRot);
+    }
+
+    public void Fire(Vector3 origin, Vector3 direction, Quaternion rotation, ref Vector2 addRot)
+    {
         // Get time in seconds since the last time the weapon fired
         float sinceLastFire = Time.time - lastFireTime;
 
@@ -172,6 +111,7 @@ public class WeaponClass : MonoBehaviour
         {
             lastFireTime = Time.time;
             RaycastHit hitInfo;
+            bool hitSomething = false;
             // Different methods for hitscan weapons, projectile weapons
             switch (weaponType)
             {
@@ -190,13 +130,22 @@ public class WeaponClass : MonoBehaviour
                     }
 
                     hitInfo = ShootHitScan(origin, direction, rotation);
+                    hitSomething = hitInfo.collider != null;
+
+                    // If we hit an entity, make it reduce its hp by the weapon's dmg
+                    if (hitSomething)
+                    {
+                        ApplyDamageToEnt(hitInfo, direction);
+                    }
+
+
                     if (hitscanProjectile != null)
                     {
                         // Get point and direction from where the visual projectile should fire (gun barrel)
                         // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
                         Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y);
                         Vector3 offsetDir = Vector3.Normalize(origin + 50 * direction - offsetOrigin);
-                        if (hitInfo.collider != null)
+                        if (hitSomething)
                         {
                             offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
                         }
@@ -204,7 +153,12 @@ public class WeaponClass : MonoBehaviour
                         // Shoot the projectile with the calculated direction and point with offset
                         ShootProjectile(offsetOrigin, offsetDir, rotation);
                     }
-                    addRot += new Vector2(-recoilPattern[recoilInd].x, recoilPattern[recoilInd].y);
+
+                    if (recoilPattern.Count != 0)
+                    {
+                        addRot += new Vector2(-recoilPattern[recoilInd].x, recoilPattern[recoilInd].y);
+                    }
+
                     break;
 
                 case WeaponType.HITSCAN_SPREAD:
@@ -217,7 +171,17 @@ public class WeaponClass : MonoBehaviour
 
                         // Shoot pellet's ray
                         hitInfo = ShootHitScan(origin, pelDir, pelRot);
-                        if (hitscanProjectile != null) {
+                        hitSomething = hitInfo.collider != null;
+
+                        // If we hit an entity, make it reduce its hp by the weapon's dmg
+                        if (hitSomething)
+                        {
+                            ApplyDamageToEnt(hitInfo, pelDir);
+                        }
+
+                        // Cosmetic projectile
+                        if (hitscanProjectile != null)
+                        {
                             // Get point and direction from where the visual projectile should fire (gun barrel)
                             // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
                             Vector3 offsetOrigin = origin + pelRot * new Vector3(offset.x, offset.y);
@@ -249,8 +213,23 @@ public class WeaponClass : MonoBehaviour
 
         return newRot;
     }
-    public void SetLastFireTime(float val)
+
+    bool ApplyDamageToEnt(RaycastHit hitInfo, Vector3 dir)
     {
-        lastFireTime = val;
+        if (hitInfo.collider.tag == "Entity")
+        {
+            try
+            {
+                EntityClass entityHit = hitInfo.collider.gameObject.GetComponent<EntityClass>();
+                entityHit.TakeDamageKnockback(dmg, knockbackStrength*dir);
+            }
+            catch (Exception e)
+            {
+                Debug.Log("Caught exception: " + e);
+                Debug.Log("Couldn't convert GameObject tagged as \"Entity\"");
+                return false;
+            }
+        }
+        return true;
     }
 }

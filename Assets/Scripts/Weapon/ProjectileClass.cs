@@ -1,5 +1,7 @@
 using Unity.VisualScripting;
 using UnityEngine;
+using System;
+
 
 public class ProjectileClass : MonoBehaviour
 {
@@ -9,9 +11,13 @@ public class ProjectileClass : MonoBehaviour
     Rigidbody body;
     private Vector3 dir = Vector3.zero;
     private Vector3 dirAccel = Vector3.zero;
-    public float speed = 10.0f;
-    public float accel = 0.0f;
-    public float range = 1000.0f;
+
+    // Stats
+    public bool cosmetic = false;
+    public int dmg;
+    public float speed;
+    public float accel;
+    public float range;
 
     private Vector3 spawnPos;
     private float spawnTime;
@@ -19,7 +25,6 @@ public class ProjectileClass : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        Debug.Log("Projectile created");
         mesh = GetComponent<MeshFilter>();
 
         hitbox = GetComponent<BoxCollider>();
@@ -34,7 +39,7 @@ public class ProjectileClass : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+
     }
 
     void FixedUpdate()
@@ -49,13 +54,35 @@ public class ProjectileClass : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
-        Debug.Log("Projectile destroyed");
-        Debug.Log("Collided with: " + collision.collider);
+        if (!cosmetic)
+        {
+            ApplyDamageToEnt(collision.collider);
+        }
         Destroy(gameObject);
     }
 
     public void SetDirection(Vector3 newDir)
     {
         dir = newDir;
+    }
+    
+    bool ApplyDamageToEnt(Collider col)
+    {
+        if (col.tag == "Entity")
+        {
+            try
+            {
+                EntityClass entityHit = col.gameObject.GetComponent<EntityClass>();
+                entityHit.TakeDamageKnockback(dmg, Vector3.zero);
+            }
+            catch (Exception e)
+            {
+                Debug.Log("Caught exception: " + e);
+                Debug.Log("Couldn't convert GameObject tagged as \"Entity\"");
+                return false;
+            }
+        }
+
+        return true;
     }
 }
