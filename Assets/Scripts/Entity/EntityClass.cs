@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 // Class to be inherited
@@ -19,6 +21,8 @@ public class EntityClass : MonoBehaviour
     protected Vector3 speed = Vector3.zero;
     protected Vector2 rotation = Vector2.zero;
 
+    protected List<String> extraTags;
+
     // Character Control
     protected CharacterController charCont;
 
@@ -33,6 +37,9 @@ public class EntityClass : MonoBehaviour
 
     protected void EntityStart()
     {
+        // Instantiate
+        extraTags = new List<String>();
+
         HP = maxHP;
 
         // Assign components
@@ -135,7 +142,37 @@ public class EntityClass : MonoBehaviour
 
     protected void ZeroHP()
     {
-        
+
+    }
+
+    public virtual void OnGettingHit(GameObject hitBy)
+    {
+
+    }
+
+    protected int AddExtraTag(String tagToAdd)
+    {
+        if (!extraTags.Contains(tagToAdd))
+        {
+            extraTags.Add(tagToAdd);
+            return 0;
+        }
+        else
+        {
+            return -1;
+        }
+    }
+
+    public bool HasExtraTag(String tagToCheck)
+    {
+        if (extraTags.Contains(tagToCheck))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
 }

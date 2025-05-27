@@ -41,6 +41,9 @@ public class PlayerControl : EntityClass
     {
         EntityStart();
 
+        // Extra tags
+        AddExtraTag("Player");
+
         Cursor.lockState = CursorLockMode.Locked;
 
         // Assign InputActions to the Actions made in InputSystem
@@ -65,6 +68,7 @@ public class PlayerControl : EntityClass
         for (int i = 0; i < weapon.Count; i++)
         {
             weapon[i].Init();
+            weapon[i].SetOwner(gameObject);
         }
     }
 

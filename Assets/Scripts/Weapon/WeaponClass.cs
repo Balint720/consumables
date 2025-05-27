@@ -3,11 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using Unity.VisualScripting.FullSerializer;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 public class WeaponClass : MonoBehaviour
 {
+    int ownerID;
     public enum FiringMode
     {
         SEMI,
@@ -69,6 +71,24 @@ public class WeaponClass : MonoBehaviour
         bloomMod = 1.0f;
         rpmMod = 1.0f;
         knockbackMod = 1.0f;
+    }
+
+    public void SetOwner(GameObject newOwner)
+    {
+        ownerID = newOwner.GetInstanceID();
+    }
+
+    public GameObject GetOwner()
+    {
+        if (ownerID == 0)
+        {
+            return null;
+        }
+        else
+        {
+            return (GameObject)EditorUtility.InstanceIDToObject(ownerID);
+        }
+        
     }
 
     RaycastHit ShootHitScan(Vector3 origin, Vector3 direction, Quaternion rotation)
@@ -224,7 +244,8 @@ public class WeaponClass : MonoBehaviour
             try
             {
                 EntityClass entityHit = hitInfo.collider.gameObject.GetComponent<EntityClass>();
-                entityHit.TakeDamageKnockback(dmg, knockbackStrength*dir);
+                entityHit.TakeDamageKnockback(dmg, knockbackStrength * dir);
+                entityHit.OnGettingHit(GetOwner());
             }
             catch (Exception e)
             {
