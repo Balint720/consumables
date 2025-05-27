@@ -159,6 +159,7 @@ MonoBehaviour:
   VSpeedCap: 10
   HAccel: 40
   grav: 20
+  turnSpeedRatio: 15
 --- !u!143 &66048527
 CharacterController:
   m_ObjectHideFlags: 0
@@ -259,7 +260,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 66048525}
-  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 2534964839176971238, guid: 6c090eeebeafbfa4b80d9354f7fa2a3b, type: 3}
 --- !u!4 &66048531
 Transform:
   m_ObjectHideFlags: 0
@@ -1111,6 +1112,7 @@ MonoBehaviour:
   VSpeedCap: 10
   HAccel: 40
   grav: 20
+  turnSpeedRatio: 0
   DebugText: {fileID: 1570250891}
   cam: {fileID: 330585549}
   sens: 0.4

@@ -31,7 +31,7 @@ public class EnemyGround : EntityClass
         nav = GetComponent<NavMeshAgent>();
 
         // Set up nav mesh agent component
-        nav.updatePosition = true; nav.updateRotation = true;
+        nav.updatePosition = false; nav.updateRotation = false;
         nav.speed = HSpeedCap;
         nav.acceleration = HAccel;
 
@@ -50,8 +50,12 @@ public class EnemyGround : EntityClass
 
     void FixedUpdate()
     {
-        nav.velocity += knockback;
-        knockback = Vector3.zero;
+        // Get direction to target for calculating rotation
+        Vector3 dir = (nav.steeringTarget - transform.position).normalized;
+        Quaternion rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z));
+
+        CalcMovementGrounded(nav.velocity.normalized, rot);
+        nav.nextPosition = transform.position;
 
         switch (enState)
         {
@@ -64,6 +68,8 @@ public class EnemyGround : EntityClass
                 }
                 break;
         }
+
+        Debug.Log("Rotation of enemy: " + rotation);
     }
 
     void OnCollisionEnter(Collision collision)
