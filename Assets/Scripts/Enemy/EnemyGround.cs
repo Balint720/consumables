@@ -1,4 +1,5 @@
 using System;
+using Unity.AI.Navigation;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
@@ -6,6 +7,8 @@ using UnityEngine.UIElements;
 
 public class EnemyGround : EntityClass
 {
+
+    public GameObject DebugSphere;
     // Movement variables
     bool initJump = false;
     NavMeshAgent nav;
@@ -34,12 +37,14 @@ public class EnemyGround : EntityClass
         nav.updatePosition = false; nav.updateRotation = false;
         nav.speed = HSpeedCap;
         nav.acceleration = HAccel;
+        nav.stoppingDistance = 10.0f;
+        nav.autoTraverseOffMeshLink = true;
 
         backAndForth = 1;
 
         // Assign state
         enState = EnemyState.PATROL;
-
+        
     }
 
     // Update is called once per frame
@@ -52,9 +57,40 @@ public class EnemyGround : EntityClass
     {
         // Get direction to target for calculating rotation
         Vector3 dir = (nav.steeringTarget - transform.position).normalized;
-        Quaternion rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z));
+        Quaternion rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z));                 // Rotation to the position being moved to
 
-        CalcMovementGrounded(nav.velocity.normalized, rot);
+        if (entToChase != null)
+        {
+            dir = (entToChase.transform.position - transform.position).normalized;
+            rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z));
+        }
+
+        bool doJump = false;
+
+        // Are we standing on a mesh link, if so, handle it
+        if (nav.isOnOffMeshLink)
+        {
+            NavMeshLink link = nav.currentOffMeshLinkData.owner.GetComponent<NavMeshLink>();
+            if ((link.endPoint - link.startPoint).magnitude < (nav.destination - transform.position).magnitude)
+            {
+                link.activated = true;
+                switch (link.area)
+                {
+                    case 2:
+                        doJump = true;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            else
+            {
+                link.activated = false;
+            }
+        }
+
+        CalcMovementGrounded(nav.nextPosition, rot, doJump);
+
         nav.nextPosition = transform.position;
 
         switch (enState)
@@ -68,8 +104,7 @@ public class EnemyGround : EntityClass
                 }
                 break;
         }
-
-        Debug.Log("Rotation of enemy: " + rotation);
+        DebugSphere.transform.position = nav.nextPosition + new Vector3(0, 4.0f, 0);
     }
 
     void OnCollisionEnter(Collision collision)

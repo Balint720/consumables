@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 // Class to be inherited
 public class EntityClass : MonoBehaviour
 {
+    public TextMeshProUGUI DebugText;
+
     // Stats
     public int maxHP;
     protected int HP;
@@ -107,7 +111,7 @@ public class EntityClass : MonoBehaviour
         transform.rotation = Quaternion.Euler(0, rotation.y, 0);
     }
 
-    protected void CalcMovementGrounded(Vector3 dir, Quaternion rot)
+    protected void CalcMovementGrounded(Vector3 nextPos, Quaternion rot, bool doJump = false)
     {
         // Calculate speed
         // Get current forwards and sideways speed
@@ -130,6 +134,9 @@ public class EntityClass : MonoBehaviour
         }
 
         // Modify values based on input
+        Vector3 dirWhole = nextPos - transform.position;
+        Vector3 dir = dirWhole.normalized;
+
         SpeedCalc(ref forwardsSpeed, Vector3.Dot(dir, transform.forward));
         SpeedCalc(ref sideSpeed, Vector3.Dot(dir, transform.right));
 
@@ -138,7 +145,7 @@ public class EntityClass : MonoBehaviour
         {
             case State.GROUNDED:
                 // If we jump, set vertical speed to set value, otherwise, keep it negative
-                if (dir.y > 0.5)
+                if (doJump)
                 {
                     vertSpeed = VSpeedCap;
                 }
@@ -159,13 +166,35 @@ public class EntityClass : MonoBehaviour
         // Add speeds together
         speed = forwardsSpeed * transform.forward + sideSpeed * transform.right + new Vector3(0, vertSpeed, 0);
 
+        /*
+        Vector3 horizSpeed = new Vector3(speed.x, 0, speed.z);
+        
+        float brakeDist = (horizSpeed.magnitude * horizSpeed.magnitude) / (2 * HAccel);
+        if (distance <= brakeDist)
+        {
+            Vector3 newHorizSpeed = horizSpeed - (horizSpeed.normalized * HAccel * Time.fixedDeltaTime);
+            if (Vector3.Dot(horizSpeed, newHorizSpeed) < 0.0)
+            {
+                Debug.Log("Vector zeroed out because of sign switch");
+                speed = Vector3.zero + new Vector3(0, speed.y, 0);
+            }
+            else
+            {
+                speed = newHorizSpeed + new Vector3(0, speed.y, 0);
+            }
+            
+        }
+        */
+
         // Add knockback then reset it
         speed += knockback;
         knockback = Vector3.zero;
 
         // Apply movement
         charCont.Move(speed * Time.fixedDeltaTime);
-        transform.rotation = Quaternion.Slerp(transform.rotation, rot, turnSpeedRatio*Time.fixedDeltaTime);
+        transform.rotation = Quaternion.Slerp(transform.rotation, rot, turnSpeedRatio * Time.fixedDeltaTime);
+
+        DebugText.text = speed.ToString();
     }
 
     protected void SpeedCalc(ref float speedVal, float inputVal)

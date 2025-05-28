@@ -8,9 +8,6 @@ using UnityEngine.InputSystem;
 
 public class PlayerControl : EntityClass
 {
-    // Debug text
-    public TextMeshProUGUI DebugText;
-
     // Camera
     public CameraControl cam;
 
