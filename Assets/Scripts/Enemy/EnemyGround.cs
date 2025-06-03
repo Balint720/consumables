@@ -56,13 +56,19 @@ public class EnemyGround : EntityClass
     void FixedUpdate()
     {
         // Get direction to target for calculating rotation
-        Vector3 dir = (nav.steeringTarget - transform.position).normalized;
-        Quaternion rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z));                 // Rotation to the position being moved to
+        Vector3 dir = Vector3.zero;
+        Quaternion rot = Quaternion.identity;
+
 
         if (entToChase != null)
         {
             dir = (entToChase.transform.position - transform.position).normalized;
-            rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z));
+            if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }
+        }
+        else
+        {
+            dir = (nav.steeringTarget - transform.position).normalized;
+            if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }               // Rotation to the position being moved to
         }
 
         bool doJump = false;
@@ -71,7 +77,7 @@ public class EnemyGround : EntityClass
         if (nav.isOnOffMeshLink)
         {
             NavMeshLink link = nav.currentOffMeshLinkData.owner.GetComponent<NavMeshLink>();
-            if ((link.endPoint - link.startPoint).magnitude < (nav.destination - transform.position).magnitude)
+            if ((link.endPoint - link.startPoint).sqrMagnitude < (nav.destination - transform.position).sqrMagnitude)
             {
                 link.activated = true;
                 switch (link.area)

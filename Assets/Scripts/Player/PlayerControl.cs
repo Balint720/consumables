@@ -28,8 +28,9 @@ public class PlayerControl : EntityClass
     public float inputBuffer = 0.2f;
     // Constants
 
-    // Weapons
+    // Inv
     public List<WeaponClass> weapon;
+    List<int> modifier;
 
     private int equippedItem;
 
@@ -67,6 +68,13 @@ public class PlayerControl : EntityClass
             weapon[i].Init();
             weapon[i].SetOwner(gameObject);
         }
+
+        //
+        modifier = new List<int>();
+        for (int i = 0; i < Enum.GetNames(typeof(PickUpClass.PickUpType)).Length; i++)
+        {
+            modifier.Add(0);
+        }
     }
 
     // Update is called once per frame
@@ -74,7 +82,7 @@ public class PlayerControl : EntityClass
     {
         //----Input polling------
         // Movement
-        moveVect = new Vector3(moveInput.ReadValue<Vector2>().x,jumpInput.IsPressed() ? 1.0f : 0.0f, moveInput.ReadValue<Vector2>().y);
+        moveVect = new Vector3(moveInput.ReadValue<Vector2>().x, jumpInput.IsPressed() ? 1.0f : 0.0f, moveInput.ReadValue<Vector2>().y);
         lookVect = lookInput.ReadValue<Vector2>();
         if (attackInput.WasPressedThisFrame())
         {
@@ -117,7 +125,7 @@ public class PlayerControl : EntityClass
         }
     }
 
-    
+
 
     public Vector2 GetRotation()
     {
@@ -148,9 +156,9 @@ public class PlayerControl : EntityClass
 
         if (canShoot)
         {
-            weapon[equippedItem].Fire(cam, ref addedRotation, charCont.velocity*2*Time.fixedDeltaTime);
+            weapon[equippedItem].Fire(cam, ref addedRotation, charCont.velocity * 2 * Time.fixedDeltaTime);
         }
-        
+
         attackPressed = false;
     }
 
@@ -162,5 +170,30 @@ public class PlayerControl : EntityClass
             rotation += incVec;
             yield return null;
         }
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        Debug.Log("Hit " + other.gameObject);
+        if (other.CompareTag("PickUp"))
+        {
+            // Get Pickup type
+            PickUpClass p;
+            try
+            {
+                p = other.gameObject.GetComponent<PickUpClass>();
+            }
+            catch (Exception e)
+            {
+                Debug.Log(e);
+                Debug.Log("Couldn't get PickUpClass component from object tagged as \"PickUp\"");
+                return;
+            }
+            // Add to inventory
+            modifier[(int)p.puType] += 1;
+        }
+
+        // Destroy pickup
+        Destroy(other.gameObject);
     }
 }

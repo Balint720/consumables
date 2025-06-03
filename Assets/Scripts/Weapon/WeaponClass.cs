@@ -88,7 +88,7 @@ public class WeaponClass : MonoBehaviour
         {
             return (GameObject)EditorUtility.InstanceIDToObject(ownerID);
         }
-        
+
     }
 
     RaycastHit ShootHitScan(Vector3 origin, Vector3 direction, Quaternion rotation)
@@ -255,5 +255,16 @@ public class WeaponClass : MonoBehaviour
             }
         }
         return true;
+    }
+
+    void ApplyModifier(PickUpClass.PickUpType pu)
+    {
+        switch (pu)
+        {
+            case PickUpClass.PickUpType.ELECTRIC:
+                break;
+            default:
+                break;
+        }
     }
 }
