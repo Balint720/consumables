@@ -12,27 +12,26 @@ public class PlayerControl : EntityClass
     public CameraControl cam;
 
     // Input Variables
-    InputAction moveInput;          // Movement (forward backwards sideways)
-    InputAction jumpInput;          // Jumping (vertical)
-    InputAction lookInput;          // Looking
-    InputAction[] invInput;         // Inventory
-    InputAction attackInput;         // Shooting
-    bool attackPressed = false;
-    float attackBuf = 0;
+    InputAction moveInput;              // Movement (forward backwards sideways)
+    InputAction jumpInput;              // Jumping (vertical)
+    InputAction lookInput;              // Looking
+    InputAction[] invInput;             // Inventory
+    InputAction attackInput;            // Shooting
+    bool attackPressed;                 // Used for checking if attack button is held down or just pressed (probably an in engine way to check, this is cooked)
+    float attackBuf;                    // How long attack has been held down
 
-    Vector2 lookVect;               // Cursor vector
-    Vector2 addedRotation;          // Rotation from other factors than input
+    Vector2 lookVect;                   // Cursor vector
+    Vector2 addedRotation;              // Rotation from other factors than input
 
     // Player settings
-    public float sens = 0.4f;
-    public float inputBuffer = 0.2f;
-    // Constants
+    public float sens = 0.4f;           // Sensitivity of mouse movement
+    public float inputBuffer = 0.2f;    // How many seconds are buffered inputs considered pressed
 
     // Inv
-    public List<WeaponClass> weapon;
-    List<int> modifier;
+    public List<WeaponClass> weapon;    // List of WeaponClass objects that the player has
+    List<int> consumable;               // Number of a consumable the player has in their inventory
 
-    private int equippedItem;
+    private int equippedItem;           // Currently equipped item (includes weapons)
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -42,6 +41,7 @@ public class PlayerControl : EntityClass
         // Extra tags
         AddExtraTag("Player");
 
+        // Set the cursor locked to game screen
         Cursor.lockState = CursorLockMode.Locked;
 
         // Assign InputActions to the Actions made in InputSystem
@@ -63,17 +63,18 @@ public class PlayerControl : EntityClass
 
         // Default values
         equippedItem = 0;                               // Equipped inventory slot
+        // Initialize each weapon
         for (int i = 0; i < weapon.Count; i++)
         {
             weapon[i].Init();
             weapon[i].SetOwner(gameObject);
         }
 
-        //
-        modifier = new List<int>();
+        // Initialize consumables
+        consumable = new List<int>();
         for (int i = 0; i < Enum.GetNames(typeof(PickUpClass.PickUpType)).Length; i++)
         {
-            modifier.Add(0);
+            consumable.Add(0);
         }
     }
 
@@ -81,9 +82,11 @@ public class PlayerControl : EntityClass
     void Update()
     {
         //----Input polling------
-        // Movement
+        // Movement and look
         moveVect = new Vector3(moveInput.ReadValue<Vector2>().x, jumpInput.IsPressed() ? 1.0f : 0.0f, moveInput.ReadValue<Vector2>().y);
         lookVect = lookInput.ReadValue<Vector2>();
+
+        // Attack input checked, check if held or pressed
         if (attackInput.WasPressedThisFrame())
         {
             attackPressed = true;
@@ -115,6 +118,7 @@ public class PlayerControl : EntityClass
 
     void InvCallBack(InputAction.CallbackContext context)
     {
+        // Depending on which action it is, set the equipped item to that number
         for (int i = 0; i < 3; i++)
         {
             if (context.action == invInput[i])
@@ -126,16 +130,6 @@ public class PlayerControl : EntityClass
     }
 
 
-
-    public Vector2 GetRotation()
-    {
-        return new Vector2(rotation.x, rotation.y);
-    }
-
-    public void AddRotation(Vector2 rotToAdd)
-    {
-        rotation += rotToAdd;
-    }
 
     void DoAttack()
     {
@@ -174,7 +168,7 @@ public class PlayerControl : EntityClass
 
     void OnTriggerEnter(Collider other)
     {
-        Debug.Log("Hit " + other.gameObject);
+        // If we hit a pickup
         if (other.CompareTag("PickUp"))
         {
             // Get Pickup type
@@ -190,10 +184,21 @@ public class PlayerControl : EntityClass
                 return;
             }
             // Add to inventory
-            modifier[(int)p.puType] += 1;
+            consumable[(int)p.puType] += 1;
         }
 
         // Destroy pickup
         Destroy(other.gameObject);
+    }
+
+    // Getters and setters
+    public Vector2 GetRotation()
+    {
+        return new Vector2(rotation.x, rotation.y);
+    }
+
+    public void AddRotation(Vector2 rotToAdd)
+    {
+        rotation += rotToAdd;
     }
 }

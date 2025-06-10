@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 
 public class WeaponClass : MonoBehaviour
 {
-    int ownerID;
+    int ownerID;                                // Get ID of weapon's owner
     public enum FiringMode
     {
         SEMI,
@@ -26,10 +26,10 @@ public class WeaponClass : MonoBehaviour
     public FiringMode fireMode;  // Basically, does holding down the mouse keep shooting or not
 
     // Stats
-    public int dmg = 1;                    // Damage will be calculated for every bullet
-    float dmgMod;                        // Damage will be multiplied by this value
+    public int dmg = 1;                         // Damage will be calculated for every bullet
+    float dmgMod;                               // Damage will be multiplied by this value
     public uint pelCount;                       // Pellet count for shotguns
-    int recoilInd;                             // Index of where we are in the recoil pattern
+    int recoilInd;                              // Index of where we are in the recoil pattern
     float recoilValMod;                         // Recoil will be multiplied by this value
     public List<Vector2> recoilPattern;         // List of recoilVal values for recoil pattern (can also be where bullets from a shotgun go)
     public float recoilRecoveryTime;            // How long until recoil resets in seconds
@@ -37,33 +37,22 @@ public class WeaponClass : MonoBehaviour
     float bloomMod;                             // Maximum bloom will be multiplied by this value
     public int rpm;                             // Fire rate: rounds per minute
     float rpmMod;                               // RPM will be multiplied by this value
-    public float knockbackStrength;
-    float knockbackMod;
+    public float knockbackStrength;             // Strength of knockback applied by weapon
+    float knockbackMod;                         // KnockbackStrength will be multiplied by this value
     public float range;                         // Range of weapon, for hitscan this is the max distance of the raycast, for projectiles the projectile gets destroyed after traveling this many units
+    public float projSpeed;                     // Speed of projectile
+    float projSpeedMod;                         // Speed of projectile will be multiplied by this value
     public Vector3 offset;
 
     // Time
-    float lastFireTime;
+    float lastFireTime;                         // Seconds that have passed since last time weapon fired
 
     // Projectiles
     public ProjectileClass hitscanProjectile;
 
-    WeaponClass()
-    {
-        weaponType = WeaponType.HITSCAN_SINGLE;
-        fireMode = FiringMode.SEMI;
-        dmg = 1;
-        pelCount = 1;
-        recoilPattern = new List<Vector2>(1);
-        recoilRecoveryTime = 0.8f;
-        bloom = 0.0f;
-        rpm = 300;
-        range = 200.0f;
-        offset = Vector3.zero;
-    }
-
     public void Init()
     {
+        // Set default values
         lastFireTime = 0.0f;
         dmgMod = 1.0f;
         recoilInd = 0;
@@ -71,26 +60,16 @@ public class WeaponClass : MonoBehaviour
         bloomMod = 1.0f;
         rpmMod = 1.0f;
         knockbackMod = 1.0f;
+        projSpeedMod = 1.0f;
     }
 
-    public void SetOwner(GameObject newOwner)
-    {
-        ownerID = newOwner.GetInstanceID();
-    }
-
-    public GameObject GetOwner()
-    {
-        if (ownerID == 0)
-        {
-            return null;
-        }
-        else
-        {
-            return (GameObject)EditorUtility.InstanceIDToObject(ownerID);
-        }
-
-    }
-
+    /// <summary>
+    /// Shoot a ray into direction, return hitInfo
+    /// </summary>
+    /// <param name="origin"></param>
+    /// <param name="direction"></param>
+    /// <param name="rotation"></param>
+    /// <returns></returns>
     RaycastHit ShootHitScan(Vector3 origin, Vector3 direction, Quaternion rotation)
     {
         // Shoot ray into direction from origin with a maximum range
@@ -100,16 +79,21 @@ public class WeaponClass : MonoBehaviour
         return hitInfo;
     }
 
+    /// <summary>
+    /// Shoot a projectile into direction, also sets projectile damage values
+    /// </summary>
+    /// <param name="origin"></param>
+    /// <param name="direction"></param>
+    /// <param name="rotation"></param>
     void ShootProjectile(Vector3 origin, Vector3 direction, Quaternion rotation)
     {
         // Set the direction and offset IF there is a hitscanProjectile
         ProjectileClass p = Instantiate(hitscanProjectile, origin, rotation);
         p.SetDirection(direction);
-    }
 
-    public FiringMode GetFiringMode()
-    {
-        return fireMode;
+        // Set projectile values and owner
+        p.SetValuesOfProj((int)(dmg * dmgMod), projSpeed * projSpeedMod);
+        p.SetOwner(ownerID);
     }
 
     public void Fire(CameraControl cam, ref Vector2 addRot, Vector3 speed = new Vector3())
@@ -222,6 +206,12 @@ public class WeaponClass : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Calculates the new direction, modifying it with the recoil pattern value
+    /// </summary>
+    /// <param name="dir"></param>
+    /// <param name="ind"></param>
+    /// <returns></returns>
     Vector3 CalcRecoiledDir(Vector3 dir, int ind)
     {
         Vector3 newDir = Quaternion.Euler(-recoilPattern[ind].x, recoilPattern[ind].y, 0.0f) * Vector3.forward;
@@ -230,6 +220,13 @@ public class WeaponClass : MonoBehaviour
 
         return newDir;
     }
+
+    /// <summary>
+    /// Calculates the rotation of the projectile based on the recoil pattern
+    /// </summary>
+    /// <param name="rot"></param>
+    /// <param name="ind"></param>
+    /// <returns></returns>
     Quaternion CalcRecoiledRot(Quaternion rot, int ind)
     {
         Quaternion newRot = Quaternion.Euler(-recoilPattern[ind].x, recoilPattern[ind].y, 0.0f) * rot;
@@ -243,6 +240,7 @@ public class WeaponClass : MonoBehaviour
         {
             try
             {
+                // Try to get entityclass from hit collider, then make it call its own takedamage function
                 EntityClass entityHit = hitInfo.collider.gameObject.GetComponent<EntityClass>();
                 entityHit.TakeDamageKnockback(dmg, knockbackStrength * dir);
                 entityHit.OnGettingHit(GetOwner());
@@ -257,6 +255,10 @@ public class WeaponClass : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Modifies weapon behaviour based on consumable used
+    /// </summary>
+    /// <param name="pu">Type of consumable</param>
     void ApplyModifier(PickUpClass.PickUpType pu)
     {
         switch (pu)
@@ -266,5 +268,27 @@ public class WeaponClass : MonoBehaviour
             default:
                 break;
         }
+    }
+
+    // Setters and getters
+    public void SetOwner(GameObject newOwner)
+    {
+        ownerID = newOwner.GetInstanceID();
+    }
+    public GameObject GetOwner()
+    {
+        if (ownerID == 0)
+        {
+            return null;
+        }
+        else
+        {
+            return (GameObject)EditorUtility.InstanceIDToObject(ownerID);
+        }
+    }
+
+    public FiringMode GetFiringMode()
+    {
+        return fireMode;
     }
 }

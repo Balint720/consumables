@@ -4,33 +4,38 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+// Entity
 // Class to be inherited
 public class EntityClass : MonoBehaviour
 {
     public TextMeshProUGUI DebugText;
 
     // Stats
-    public int maxHP;
-    protected int HP;
+    public int maxHP;                               // Maximum HP
+    protected int HP;                               // Current HP
 
     // Movement Variables
-    public float HSpeedCap = 10;
-    public float VSpeedCap = 10;
-    public float HAccel = 40;
-    public float grav = 20.0f;
-    protected Vector3 knockback = Vector3.zero;
-    protected float knockbackMod = 1.0f;
-    protected Vector3 moveVect;               // Movement input vector
-    public float turnSpeedRatio;
-    protected float turnSpeedMod;
-    // Current
-    protected Vector3 speed = Vector3.zero;
-    protected Vector2 rotation = Vector2.zero;
+    public float HSpeedCap;                         // Horizontal speed cap
+    public float VSpeedCap;                         // Vertical speed cap
+    public float HAccel;                            // Horizontal acceleration
+    public float grav;                              // Gravity effect
+    protected Vector3 knockback;                    // Knockback vector
+    protected float knockbackMod;                   // Knockback multiplier
+    protected Vector3 moveVect;                     // Movement input vector
+    public float turnSpeedRatio;                    // Turn speed ratio: how fast the character turns
+    protected float turnSpeedMod;                   // Turn speed modifier
 
+    // Current
+    protected Vector3 speed;                        // Speed vector
+    protected Vector2 rotation;                     // Rotation vector
+    protected Quaternion rotationQuat;              // Rotation quaternion
+
+    // Extra tags
     protected List<String> extraTags;
 
-    // Character Control
+    // Unity components
     protected CharacterController charCont;
+    protected Rigidbody rigBod;
 
     // Character movement state
     protected enum State
@@ -39,20 +44,36 @@ public class EntityClass : MonoBehaviour
         AIRBORNE
     };
 
-    protected State movState = State.AIRBORNE;
+    protected State movState;
 
     protected void EntityStart()
     {
-        // Instantiate
+        // Instantiate, assign components
         extraTags = new List<String>();
-
-        HP = maxHP;
-
-        // Assign components
         charCont = GetComponent<CharacterController>();
+        rigBod = GetComponent<Rigidbody>();
+
+        // Set variables
+        HP = maxHP;
+        knockback = Vector3.zero;
+        knockbackMod = 1.0f;
+        moveVect = Vector3.zero;
+        turnSpeedMod = 1.0f;
+        speed = Vector3.zero;
+        rotation = Vector2.zero;
+        rotationQuat = Quaternion.identity;
+        movState = State.AIRBORNE;
+
+        if (rigBod != null)
+        {
+            rigBod.isKinematic = true;
+        }
     }
 
-    protected void CalcMovementGrounded()
+    /// <summary>
+    /// Grounded movement calculation based on MoveInput vector
+    /// </summary>
+    protected void CalcMovementGrounded(bool applyMovRot = true)
     {
         // Calculate speed
         // Get current forwards and sideways speed
@@ -81,7 +102,7 @@ public class EntityClass : MonoBehaviour
         switch (movState)
         {
             case State.GROUNDED:
-                // If we jump, set vertical speed to set value, otherwise, keep it negative
+                // If we jump, set vertical speed to set value, otherwise, keep it negative to stick to the ground (ramps, slopes)
                 if (moveVect.y > 0.5)
                 {
                     vertSpeed = VSpeedCap;
@@ -92,119 +113,68 @@ public class EntityClass : MonoBehaviour
                 }
                 break;
             case State.AIRBORNE:
+                // If we were grounded the last frame, then reset vertSpeed if it was negative
                 if (prevFrame == State.GROUNDED && vertSpeed < 0.0f)
                 {
                     vertSpeed = 0.0f;
                 }
+
+                // Apply gravity
                 vertSpeed -= grav * Time.fixedDeltaTime;
                 break;
         }
 
         // Add speeds together
         speed = forwardsSpeed * transform.forward + sideSpeed * transform.right + new Vector3(0, vertSpeed, 0);
+
         // Add knockback then reset it
-        speed += knockback;
+        speed += knockback * knockbackMod;
         knockback = Vector3.zero;
 
-        // Apply movement
-        charCont.Move(speed * Time.fixedDeltaTime);
-        transform.rotation = Quaternion.Euler(0, rotation.y, 0);
+        if (applyMovRot)
+        {
+            ApplyMoveRot();
+        }
     }
 
+    /// <summary>
+    /// Grounded movement calculation using the next position and rotation value
+    /// </summary>
+    /// <param name="nextPos">Position in world space to move to</param>
+    /// <param name="rot">Rotation of character</param>
+    /// <param name="doJump">Does the character jump?</param>
     protected void CalcMovementGrounded(Vector3 nextPos, Quaternion rot, bool doJump = false)
     {
-        // Calculate speed
-        // Get current forwards and sideways speed
-        float forwardsSpeed = Vector3.Dot(charCont.velocity, transform.forward);
-        float sideSpeed = Vector3.Dot(charCont.velocity, transform.right);                      // We get these from the real speed of the character because sliding off of walls would make us shoot off them with max speed as soon as we are no longer colliding with them
-        float vertSpeed = Vector3.Dot(speed, new Vector3(0, 1, 0));                             // We get this from the "theoretical" speed vector because we want to keep negative speed while on the ground (shitty collision solution for walking down ramps)
-
-
-        // State on previous frame
-        State prevFrame = movState;
-
-        // Set state based on if ground beneath
-        if (charCont.isGrounded)
-        {
-            movState = State.GROUNDED;
-        }
-        else
-        {
-            movState = State.AIRBORNE;
-        }
-
-        // Modify values based on input
+        // Get direction from next position and current position
         Vector3 dirWhole = nextPos - transform.position;
         Vector3 dir = dirWhole.normalized;
 
-        SpeedCalc(ref forwardsSpeed, Vector3.Dot(dir, transform.forward));
-        SpeedCalc(ref sideSpeed, Vector3.Dot(dir, transform.right));
+        // Get input values from direction and doJump variable, set rotation as well
+        moveVect.z = Vector3.Dot(dir, transform.forward);
+        moveVect.x = Vector3.Dot(dir, transform.right);
+        moveVect.y = doJump ? 1.0f : 0.0f;
+        rotationQuat = rot;
 
-        // Calculate vertical speed based on state
-        switch (movState)
-        {
-            case State.GROUNDED:
-                // If we jump, set vertical speed to set value, otherwise, keep it negative
-                if (doJump)
-                {
-                    vertSpeed = VSpeedCap;
-                }
-                else
-                {
-                    vertSpeed = -10 * grav * Time.fixedDeltaTime;
-                }
-                break;
-            case State.AIRBORNE:
-                if (prevFrame == State.GROUNDED && vertSpeed < 0.0f)
-                {
-                    vertSpeed = 0.0f;
-                }
-                vertSpeed -= grav * Time.fixedDeltaTime;
-                break;
-        }
+        // Calc movement but do not apply it, apply it with different setting
+        CalcMovementGrounded(false);
+        ApplyMoveRot(true);
 
-        // Add speeds together
-        speed = forwardsSpeed * transform.forward + sideSpeed * transform.right + new Vector3(0, vertSpeed, 0);
-
-        /*
-        Vector3 horizSpeed = new Vector3(speed.x, 0, speed.z);
-        
-        float brakeDist = (horizSpeed.magnitude * horizSpeed.magnitude) / (2 * HAccel);
-        if (distance <= brakeDist)
-        {
-            Vector3 newHorizSpeed = horizSpeed - (horizSpeed.normalized * HAccel * Time.fixedDeltaTime);
-            if (Vector3.Dot(horizSpeed, newHorizSpeed) < 0.0)
-            {
-                Debug.Log("Vector zeroed out because of sign switch");
-                speed = Vector3.zero + new Vector3(0, speed.y, 0);
-            }
-            else
-            {
-                speed = newHorizSpeed + new Vector3(0, speed.y, 0);
-            }
-            
-        }
-        */
-
-        // Add knockback then reset it
-        speed += knockback;
-        knockback = Vector3.zero;
-
-        // Apply movement
-        charCont.Move(speed * Time.fixedDeltaTime);
-        transform.rotation = Quaternion.Slerp(transform.rotation, rot, turnSpeedRatio * Time.fixedDeltaTime);
-
-        DebugText.text = speed.ToString();
     }
 
+    /// <summary>
+    /// Calculate value to add to speed based on input value
+    /// </summary>
+    /// <param name="speedVal"></param>
+    /// <param name="inputVal"></param>
     protected void SpeedCalc(ref float speedVal, float inputVal)
     {
-        // Calculate speed
+        // If inputVal is on, then add speed using acceleration, capping it at the speed cap
         if (Mathf.Abs(inputVal) > 0.2)
         {
             speedVal += inputVal * (HAccel * Time.fixedDeltaTime);
             if (Mathf.Abs(speedVal) > HSpeedCap) { speedVal = Mathf.Sign(speedVal) * HSpeedCap; }
         }
+        // Otherwise, reduce it until it is below 0.5, at which point set it to 0
         else
         {
             if (Mathf.Abs(speedVal) > 0.5)
@@ -218,9 +188,31 @@ public class EntityClass : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Applies movement based on speed vector and rotation vector/quaternion
+    /// </summary>
+    /// <param name="quatSlerpRot">If true, will use rotationQuat variable and Slerp between current rotation, if false, only sets rotation to yaw of rotation vector</param>
+    protected void ApplyMoveRot(bool quatSlerpRot = false)
+    {
+        // Apply movement and yaw
+        charCont.Move(speed * Time.fixedDeltaTime);
+        if (quatSlerpRot)
+        {
+            transform.rotation = Quaternion.Slerp(transform.rotation, rotationQuat, turnSpeedRatio * Time.fixedDeltaTime);
+        }
+        else
+        {
+            transform.rotation = Quaternion.Euler(0, rotation.y, 0);
+        }
+    }
+
+    /// <summary>
+    /// Apply damage and knockback to entity, check if HP is zero
+    /// </summary>
+    /// <param name="dmg"></param>
+    /// <param name="knock"></param>
     public void TakeDamageKnockback(int dmg, Vector3 knock)
     {
-        Debug.Log("Old HP: " + HP);
         HP -= dmg;
         knockback = knock;
 
@@ -228,13 +220,16 @@ public class EntityClass : MonoBehaviour
         {
             ZeroHP();
         }
-
-        Debug.Log("New HP: " + HP);
     }
 
+    /// <summary>
+    /// If entity hits 0 hp, run this function
+    /// </summary>
     protected void ZeroHP()
     {
-
+        charCont.enabled = false;
+        rigBod.isKinematic = true;
+        rigBod.AddForce(knockback * knockbackMod, ForceMode.Force);
     }
 
     public virtual void OnGettingHit(GameObject hitBy)
@@ -242,6 +237,11 @@ public class EntityClass : MonoBehaviour
 
     }
 
+    /// <summary>
+    /// Add extra tags to entity
+    /// </summary>
+    /// <param name="tagToAdd">Tag to add as string</param>
+    /// <returns></returns>
     protected int AddExtraTag(String tagToAdd)
     {
         if (!extraTags.Contains(tagToAdd))
@@ -255,6 +255,11 @@ public class EntityClass : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Check if entity has tag
+    /// </summary>
+    /// <param name="tagToCheck">Tag string to check</param>
+    /// <returns></returns>
     public bool HasExtraTag(String tagToCheck)
     {
         if (extraTags.Contains(tagToCheck))

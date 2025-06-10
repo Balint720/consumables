@@ -7,23 +7,22 @@ using UnityEngine.UIElements;
 
 public class EnemyGround : EntityClass
 {
+    public GameObject DebugSphere;                      // Sphere to show next nav position
+    // Movement variables                       
+    NavMeshAgent nav;                                   // NavMeshAgent Unity component
+    EntityClass entToChase;                             // Entity to chase in chase mode
 
-    public GameObject DebugSphere;
-    // Movement variables
-    bool initJump = false;
-    NavMeshAgent nav;
-    int backAndForth;
-    EntityClass entToChase;
+    // Navigation settings
+    public float chaseRadius;                           // If chased entity is this close, stop moving towards them
 
     // States
     public enum EnemyState
     {
         PATROL,
         CHASE,
-
     };
 
-    EnemyState enState;
+    EnemyState enState;                                 // State of enemy
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -37,10 +36,8 @@ public class EnemyGround : EntityClass
         nav.updatePosition = false; nav.updateRotation = false;
         nav.speed = HSpeedCap;
         nav.acceleration = HAccel;
-        nav.stoppingDistance = 10.0f;
+        nav.stoppingDistance = chaseRadius;
         nav.autoTraverseOffMeshLink = true;
-
-        backAndForth = 1;
 
         // Assign state
         enState = EnemyState.PATROL;
@@ -55,71 +52,100 @@ public class EnemyGround : EntityClass
 
     void FixedUpdate()
     {
-        // Get direction to target for calculating rotation
-        Vector3 dir = Vector3.zero;
-        Quaternion rot = Quaternion.identity;
-
-
-        if (entToChase != null)
+        // Do these calculations if enemy is alive (HP larger than 0)
+        if (HP > 0)
         {
-            dir = (entToChase.transform.position - transform.position).normalized;
-            if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }
-        }
-        else
-        {
-            dir = (nav.steeringTarget - transform.position).normalized;
-            if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }               // Rotation to the position being moved to
-        }
+            // Get direction to target for calculating rotation
+            Vector3 dir = Vector3.zero;
+            Quaternion rot = Quaternion.identity;
 
-        bool doJump = false;
-
-        // Are we standing on a mesh link, if so, handle it
-        if (nav.isOnOffMeshLink)
-        {
-            NavMeshLink link = nav.currentOffMeshLinkData.owner.GetComponent<NavMeshLink>();
-            if ((link.endPoint - link.startPoint).sqrMagnitude < (nav.destination - transform.position).sqrMagnitude)
+            if (enState == EnemyState.CHASE)
             {
-                link.activated = true;
-                switch (link.area)
+                // Look towards the entity that is being chased if it can see it
+                dir = (entToChase.transform.position - transform.position).normalized;
+
+                // Cast a ray towards the entity, which if not blocked by any colliders means we look at them, otherwise we look towards the direction we are going
+                RaycastHit rayHit;
+                Physics.Raycast(transform.position, dir, out rayHit);
+                if (rayHit.collider.gameObject.name == entToChase.gameObject.name)
                 {
-                    case 2:
-                        doJump = true;
-                        break;
-                    default:
-                        break;
+                    if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }
+                }
+                else
+                {
+                    dir = (nav.steeringTarget - transform.position).normalized;
+                    if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }               // Rotation to the position being moved to
                 }
             }
+            // If we are not chasing anyone, then just look towards where it is going
             else
             {
-                link.activated = false;
+                dir = (nav.steeringTarget - transform.position).normalized;
+                if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }               // Rotation to the position being moved to
             }
-        }
+            
+            // Reset jumping variable
+            bool doJump = false;
 
-        CalcMovementGrounded(nav.nextPosition, rot, doJump);
-
-        nav.nextPosition = transform.position;
-
-        switch (enState)
-        {
-            case EnemyState.PATROL:
-                break;
-            case EnemyState.CHASE:
-                if (entToChase != null)
+            // Are we standing on a mesh link, if so, handle it
+            if (nav.isOnOffMeshLink)
+            {
+                // Get current link that we are on
+                NavMeshLink link = nav.currentOffMeshLinkData.owner.GetComponent<NavMeshLink>();
+                
+                // Check if the distance between the link's start- and endpoint is smaller than the distance of our current position and the point we want to go to
+                if ((link.endPoint - link.startPoint).sqrMagnitude < (nav.destination - transform.position).sqrMagnitude)
                 {
-                    nav.SetDestination(entToChase.transform.position);
+                    // We activate the link (?) (dont know if this does anything)
+                    link.activated = true;
+
+                    // Based on link area type, we handle the path
+                    switch (link.area)
+                    {
+                        // 2: Jump area
+                        case 2:
+                            doJump = true;
+                            break;
+                        default:
+                            break;
+                    }
                 }
-                break;
+                else
+                {
+                    link.activated = false;
+                }
+            }
+
+            // Calculate the movement based on navmesh next position using entity movement
+            CalcMovementGrounded(nav.nextPosition, rot, doJump);
+
+            // Set the position of nav to the actual position of gameobject
+            nav.nextPosition = transform.position;
+
+            // Based on enemy state:
+            switch (enState)
+            {
+                case EnemyState.PATROL:
+                    break;
+                case EnemyState.CHASE:
+                    // The navmesh should try to find a path towards the entity being chased
+                    if (entToChase != null)
+                    {
+                        nav.SetDestination(entToChase.transform.position);
+                    }
+                    else
+                    {
+                        enState = EnemyState.PATROL;
+                    }
+                    break;
+            }
+            DebugSphere.transform.position = nav.nextPosition + new Vector3(0, 4.0f, 0);
         }
-        DebugSphere.transform.position = nav.nextPosition + new Vector3(0, 4.0f, 0);
-    }
-
-    void OnCollisionEnter(Collision collision)
-    {
-
     }
 
     override public void OnGettingHit(GameObject hitBy)
     {
+        // If we get hit by an Entity, then the enemy is going to chase it
         if (hitBy.tag == "Entity")
         {
             try
