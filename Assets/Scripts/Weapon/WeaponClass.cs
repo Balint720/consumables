@@ -242,7 +242,7 @@ public class WeaponClass : MonoBehaviour
             {
                 // Try to get entityclass from hit collider, then make it call its own takedamage function
                 EntityClass entityHit = hitInfo.collider.gameObject.GetComponent<EntityClass>();
-                entityHit.TakeDamageKnockback(dmg, knockbackStrength * knockbackMod * dir);
+                entityHit.TakeDamageKnockback((int)(dmg * dmgMod), knockbackStrength * knockbackMod * dir);
                 entityHit.OnGettingHit(GetOwner());
             }
             catch (Exception e)
