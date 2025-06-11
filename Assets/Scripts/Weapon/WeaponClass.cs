@@ -92,7 +92,7 @@ public class WeaponClass : MonoBehaviour
         p.SetDirection(direction);
 
         // Set projectile values and owner
-        p.SetValuesOfProj((int)(dmg * dmgMod), projSpeed * projSpeedMod);
+        p.SetValuesOfProj((int)(dmg * dmgMod), projSpeed * projSpeedMod, knockbackStrength * knockbackMod);
         p.SetOwner(ownerID);
     }
 
@@ -111,7 +111,7 @@ public class WeaponClass : MonoBehaviour
         float sinceLastFire = Time.time - lastFireTime;
 
         // Only shoot if rate of fire allows it
-        if (sinceLastFire > 60.0f / rpm)
+        if (sinceLastFire > 60.0f / (rpm * rpmMod))
         {
             lastFireTime = Time.time;
             RaycastHit hitInfo;
@@ -161,7 +161,7 @@ public class WeaponClass : MonoBehaviour
 
                     if (recoilPattern.Count != 0)
                     {
-                        addRot += new Vector2(-recoilPattern[recoilInd].x, recoilPattern[recoilInd].y);
+                        addRot += new Vector2(-recoilPattern[recoilInd].x * recoilValMod + UnityEngine.Random.Range(0.0f, bloom*bloomMod), recoilPattern[recoilInd].y * recoilValMod + UnityEngine.Random.Range(0.0f, bloom*bloomMod));
                     }
 
                     break;
@@ -242,7 +242,7 @@ public class WeaponClass : MonoBehaviour
             {
                 // Try to get entityclass from hit collider, then make it call its own takedamage function
                 EntityClass entityHit = hitInfo.collider.gameObject.GetComponent<EntityClass>();
-                entityHit.TakeDamageKnockback(dmg, knockbackStrength * dir);
+                entityHit.TakeDamageKnockback(dmg, knockbackStrength * knockbackMod * dir);
                 entityHit.OnGettingHit(GetOwner());
             }
             catch (Exception e)
