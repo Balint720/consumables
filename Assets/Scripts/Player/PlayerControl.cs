@@ -2,57 +2,48 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class PlayerControl : EntityClass
 {
-    // Debug text
-    public TextMeshProUGUI DebugText;
-
-    // Hitbox
-    CapsuleCollider movHitBox;
     // Camera
     public CameraControl cam;
 
     // Input Variables
-    InputAction moveInput;          // Movement (forward backwards sideways)
-    InputAction jumpInput;          // Jumping (vertical)
-    InputAction lookInput;          // Looking
-    InputAction[] invInput;         // Inventory
-    InputAction attackInput;         // Shooting
-    bool attackPressed = false;
-    float attackBuf = 0;
+    InputAction moveInput;              // Movement (forward backwards sideways)
+    InputAction jumpInput;              // Jumping (vertical)
+    InputAction lookInput;              // Looking
+    InputAction[] invInput;             // Inventory
+    InputAction attackInput;            // Shooting
+    bool attackPressed;                 // Used for checking if attack button is held down or just pressed (probably an in engine way to check, this is cooked)
+    float attackBuf;                    // How long attack has been held down
 
-    Vector2 moveVect;               // Horizontal movement input vector
-    Vector2 lookVect;               // Cursor vector
-    Vector2 addedRotation;          // Rotation from other factors than input
+    Vector2 lookVect;                   // Cursor vector
+    Vector2 addedRotation;              // Rotation from other factors than input
 
     // Player settings
-    public float sens = 0.4f;
-    public float inputBuffer = 0.2f;
-    // Constants
+    public float sens = 0.4f;           // Sensitivity of mouse movement
+    public float inputBuffer = 0.2f;    // How many seconds are buffered inputs considered pressed
 
-    // Character Control
-    CharacterController charCont;
+    // Inv
+    public List<WeaponClass> weapon;    // List of WeaponClass objects that the player has
+    List<int> consumable;               // Number of a consumable the player has in their inventory
 
-    // Character movement state
-    enum State
-    {
-        GROUNDED,
-        AIRBORNE
-    };
-
-    State movState = State.AIRBORNE;
-
-    // Weapons
-    public List<WeaponClass> weapon;
-
-    private int equippedItem;
+    private int equippedItem;           // Currently equipped item (includes weapons)
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        EntityStart();
+
+        // Extra tags
+        AddExtraTag("Player");
+
+        // Set the cursor locked to game screen
+        Cursor.lockState = CursorLockMode.Locked;
+
         // Assign InputActions to the Actions made in InputSystem
         moveInput = InputSystem.actions.FindAction("Move");
         jumpInput = InputSystem.actions.FindAction("Jump");
@@ -70,15 +61,20 @@ public class PlayerControl : EntityClass
             invInput[i].started += InvCallBack;
         }
 
-        // Assign Components
-        charCont = GetComponent<CharacterController>();
-        movHitBox = GetComponent<CapsuleCollider>();
-
         // Default values
-        equippedItem = 0;
+        equippedItem = 0;                               // Equipped inventory slot
+        // Initialize each weapon
         for (int i = 0; i < weapon.Count; i++)
         {
-            weapon[i].SetLastFireTime(0.0f);
+            weapon[i].Init();
+            weapon[i].SetOwner(gameObject);
+        }
+
+        // Initialize consumables
+        consumable = new List<int>();
+        for (int i = 0; i < Enum.GetNames(typeof(PickUpClass.PickUpType)).Length; i++)
+        {
+            consumable.Add(0);
         }
     }
 
@@ -86,9 +82,11 @@ public class PlayerControl : EntityClass
     void Update()
     {
         //----Input polling------
-        // Movement
-        moveVect = moveInput.ReadValue<Vector2>();
+        // Movement and look
+        moveVect = new Vector3(moveInput.ReadValue<Vector2>().x, jumpInput.IsPressed() ? 1.0f : 0.0f, moveInput.ReadValue<Vector2>().y);
         lookVect = lookInput.ReadValue<Vector2>();
+
+        // Attack input checked, check if held or pressed
         if (attackInput.WasPressedThisFrame())
         {
             attackPressed = true;
@@ -114,111 +112,24 @@ public class PlayerControl : EntityClass
 
     void FixedUpdate()
     {
-        CalcMovement(moveVect);
+        CalcMovementGrounded();
         DoAttack();
     }
 
     void InvCallBack(InputAction.CallbackContext context)
     {
-        int slot = 0;
+        // Depending on which action it is, set the equipped item to that number
         for (int i = 0; i < 3; i++)
         {
             if (context.action == invInput[i])
             {
                 equippedItem = i;
-                slot = i + 1;
                 break;
             }
         }
     }
 
-    void CalcMovement(Vector2 moveVect)
-    {
-        // Calculate speed
-        // Get current forwards and sideways speed
-        float forwardsSpeed = Vector3.Dot(charCont.velocity, transform.forward);
-        float sideSpeed = Vector3.Dot(charCont.velocity, transform.right);                      // We get these from the real speed of the character because sliding off of walls would make us shoot off them with max speed as soon as we are no longer colliding with them
-        float vertSpeed = Vector3.Dot(speed, new Vector3(0, 1, 0));                             // We get this from the "theoretical" speed vector because we want to keep negative speed while on the ground (shitty collision solution for walking down ramps)
 
-        // State on previous frame
-        State prevFrame = movState;
-
-        // Set state based on if ground beneath
-        if (charCont.isGrounded)
-        {
-            movState = State.GROUNDED;
-        }
-        else
-        {
-            movState = State.AIRBORNE;
-        }
-
-        // Modify values based on input
-        SpeedCalc(ref forwardsSpeed, moveVect.y);
-        SpeedCalc(ref sideSpeed, moveVect.x);
-
-        // Calculate vertical speed based on state
-        switch (movState)
-        {
-            case State.GROUNDED:
-                // If we jump, set vertical speed to set value, otherwise, keep it negative
-                if (jumpInput.IsPressed())
-                {
-                    vertSpeed = VSpeedCap;
-                }
-                else
-                {
-                    vertSpeed = -10 * grav * Time.fixedDeltaTime;
-                }
-                break;
-            case State.AIRBORNE:
-                if (prevFrame == State.GROUNDED && vertSpeed < 0.0f)
-                {
-                    vertSpeed = 0.0f;
-                }
-                vertSpeed -= grav * Time.fixedDeltaTime;
-                break;
-        }
-
-        speed = forwardsSpeed * transform.forward + sideSpeed * transform.right + new Vector3(0, vertSpeed, 0);
-
-        // Handle gravity and jumping IF the character is touching the ground
-
-        // Apply movement
-        charCont.Move(speed * Time.fixedDeltaTime);
-        transform.rotation = Quaternion.Euler(0, rotation.y, 0);
-    }
-
-    void SpeedCalc(ref float speedVal, float inputVal)
-    {
-        // Calculate speed
-        if (Mathf.Abs(inputVal) > 0.1)
-        {
-            speedVal += inputVal * (HAccel * Time.fixedDeltaTime);
-            if (Mathf.Abs(speedVal) > HSpeedCap) { speedVal = Mathf.Sign(speedVal) * HSpeedCap; }
-        }
-        else
-        {
-            if (Mathf.Abs(speedVal) > 0.5)
-            {
-                speedVal -= Mathf.Sign(speedVal) * (HAccel * Time.fixedDeltaTime);
-            }
-            else
-            {
-                speedVal = 0.0f;
-            }
-        }
-    }
-
-    public Vector2 GetRotation()
-    {
-        return new Vector2(rotation.x, rotation.y);
-    }
-
-    public void AddRotation(Vector2 rotToAdd)
-    {
-        rotation += rotToAdd;
-    }
 
     void DoAttack()
     {
@@ -236,9 +147,10 @@ public class PlayerControl : EntityClass
                 break;
         }
 
+
         if (canShoot)
         {
-            weapon[equippedItem].Fire(cam, ref addedRotation);
+            weapon[equippedItem].Fire(cam, ref addedRotation, charCont.velocity * 2 * Time.fixedDeltaTime);
         }
 
         attackPressed = false;
@@ -252,5 +164,41 @@ public class PlayerControl : EntityClass
             rotation += incVec;
             yield return null;
         }
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        // If we hit a pickup
+        if (other.CompareTag("PickUp"))
+        {
+            // Get Pickup type
+            PickUpClass p;
+            try
+            {
+                p = other.gameObject.GetComponent<PickUpClass>();
+            }
+            catch (Exception e)
+            {
+                Debug.Log(e);
+                Debug.Log("Couldn't get PickUpClass component from object tagged as \"PickUp\"");
+                return;
+            }
+            // Add to inventory
+            consumable[(int)p.puType] += 1;
+        }
+
+        // Destroy pickup
+        Destroy(other.gameObject);
+    }
+
+    // Getters and setters
+    public Vector2 GetRotation()
+    {
+        return new Vector2(rotation.x, rotation.y);
+    }
+
+    public void AddRotation(Vector2 rotToAdd)
+    {
+        rotation += rotToAdd;
     }
 }

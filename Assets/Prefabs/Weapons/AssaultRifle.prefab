@@ -58,7 +58,9 @@ MonoBehaviour:
   recoilRecoveryTime: 0.8
   bloom: 0
   rpm: 1000
+  knockbackStrength: 3
   range: 200
+  projSpeed: -1
   offset: {x: 0.2, y: -0.2, z: 0.4}
   hitscanProjectile: {fileID: 4495842121767581641, guid: cbc1005230c63794e8b54c9e695f648e, type: 3}
 --- !u!33 &3807186989717451809
