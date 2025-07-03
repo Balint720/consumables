@@ -50,6 +50,11 @@ public class WeaponClass : MonoBehaviour
     // Projectiles
     public ProjectileClass hitscanProjectile;
 
+    // Model
+    public GameObject model;
+    public Vector3 modelOffset;
+    GameObject modelInst;
+
     public void Init()
     {
         // Set default values
@@ -61,6 +66,20 @@ public class WeaponClass : MonoBehaviour
         rpmMod = 1.0f;
         knockbackMod = 1.0f;
         projSpeedMod = 1.0f;
+        if (model != null)
+        {
+            modelInst = Instantiate(model, transform.position, transform.rotation * Quaternion.Euler(-90.0f, 0.0f, 90.0f));
+            modelInst.transform.localScale += new Vector3(-0.95f, -0.95f, -0.95f);
+        }
+    }
+
+    public void Upd()
+    {
+        if (modelInst != null)
+        {
+            modelInst.transform.position = transform.position + Quaternion.LookRotation(transform.forward) * modelOffset;
+            modelInst.transform.rotation = transform.rotation * Quaternion.Euler(-90.0f, 0.0f, -90.0f);
+        }
     }
 
     /// <summary>

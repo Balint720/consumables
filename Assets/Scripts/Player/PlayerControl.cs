@@ -108,6 +108,11 @@ public class PlayerControl : EntityClass
             StartCoroutine(AddRotGradual(addedRotation, 50));
             addedRotation = Vector2.zero;
         }
+
+        // Weapon update
+        weapon[0].transform.position = transform.position;
+        weapon[0].transform.rotation = transform.rotation;
+        weapon[0].Upd();
     }
 
     void FixedUpdate()
