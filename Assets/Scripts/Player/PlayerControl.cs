@@ -1,21 +1,24 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 public class PlayerControl : EntityClass
 {
     // Camera
     public CameraControl cam;
+    const float lookVerticalDegLimit = 89.0f;
 
     // Input Variables
     InputAction moveInput;              // Movement (forward backwards sideways)
     InputAction jumpInput;              // Jumping (vertical)
     InputAction lookInput;              // Looking
-    InputAction[] invInput;             // Inventory
+    List<InputAction> invInput;         // Inventory
     InputAction attackInput;            // Shooting
     bool attackPressed;                 // Used for checking if attack button is held down or just pressed (probably an in engine way to check, this is cooked)
     float attackBuf;                    // How long attack has been held down
@@ -28,7 +31,8 @@ public class PlayerControl : EntityClass
     public float inputBuffer = 0.2f;    // How many seconds are buffered inputs considered pressed
 
     // Inv
-    public List<WeaponClass> weapon;    // List of WeaponClass objects that the player has
+    public List<WeaponClass> weaponFabs;// List of WeaponClass objects that the player has
+    List<WeaponClass> weapon;
     List<int> consumable;               // Number of a consumable the player has in their inventory
 
     private int equippedItem;           // Currently equipped item (includes weapons)
@@ -42,37 +46,52 @@ public class PlayerControl : EntityClass
         AddExtraTag("Player");
 
         // Set the cursor locked to game screen
-        Cursor.lockState = CursorLockMode.Locked;
+        UnityEngine.Cursor.lockState = CursorLockMode.Locked;
 
         // Assign InputActions to the Actions made in InputSystem
         moveInput = InputSystem.actions.FindAction("Move");
         jumpInput = InputSystem.actions.FindAction("Jump");
         lookInput = InputSystem.actions.FindAction("Look");
         attackInput = InputSystem.actions.FindAction("Attack");
+        invInput = new List<InputAction>();
 
-        invInput = new InputAction[3];
-        invInput[0] = InputSystem.actions.FindAction("Inv_1");
-        invInput[1] = InputSystem.actions.FindAction("Inv_2");
-        invInput[2] = InputSystem.actions.FindAction("Inv_3");
+        int i = 0;
+        while (true)
+        {
+            String invStr = "Inv_" + (i+1).ToString();
+                
+            InputAction curr = InputSystem.actions.FindAction(invStr);
+            if (curr != null)
+            {
+                invInput.Add(curr);
+            }
+            else
+            {
+                break;
+            }
+
+            i++;
+        }
 
         // Set callback for inventory
-        for (int i = 0; i < 3; i++)
+        for (i = 0; i < invInput.Count(); i++)
         {
-            invInput[i].started += InvCallBack;
+            invInput[i].started += InvWeaponCallBack;
         }
 
         // Default values
         equippedItem = 0;                               // Equipped inventory slot
-        // Initialize each weapon
-        for (int i = 0; i < weapon.Count; i++)
+        // Instantiate each weapon
+        weapon = new List<WeaponClass>();
+
+        for (i = 0; i < weaponFabs.Count; i++)
         {
-            weapon[i].Init();
-            weapon[i].SetOwner(gameObject);
+            weapon.Add(Instantiate<WeaponClass>(weaponFabs[i], transform.position, transform.rotation));
         }
 
         // Initialize consumables
         consumable = new List<int>();
-        for (int i = 0; i < Enum.GetNames(typeof(PickUpClass.PickUpType)).Length; i++)
+        for (i = 0; i < Enum.GetNames(typeof(PickUpClass.PickUpType)).Length; i++)
         {
             consumable.Add(0);
         }
@@ -103,16 +122,28 @@ public class PlayerControl : EntityClass
 
         // Looking
         rotation += new Vector2(-lookVect.y, lookVect.x) * sens;                            // Calculate rotation from input as degrees in a 2D vector
-        if (addedRotation != Vector2.zero)
+        if (Math.Abs(rotation.x) > lookVerticalDegLimit)
+        {
+            rotation.x = lookVerticalDegLimit * Math.Sign(rotation.x);
+        }
+
+        if (addedRotation != Vector2.zero)                                                  // Added rotation is stuff like recoil, camera shake, etc
         {
             StartCoroutine(AddRotGradual(addedRotation, 50));
             addedRotation = Vector2.zero;
         }
 
         // Weapon update
-        weapon[0].transform.position = transform.position;
-        weapon[0].transform.rotation = transform.rotation;
-        weapon[0].Upd();
+        for (int i = 0; i < weapon.Count; i++)
+        {
+            if (i != equippedItem && weapon[i] != null)
+            {
+                weapon[i].gameObject.SetActive(false);
+            }
+        }
+
+        weapon[equippedItem].transform.position = transform.position;
+        weapon[equippedItem].transform.rotation = Quaternion.Euler(rotation.x, rotation.y, 0);
     }
 
     void FixedUpdate()
@@ -121,7 +152,7 @@ public class PlayerControl : EntityClass
         DoAttack();
     }
 
-    void InvCallBack(InputAction.CallbackContext context)
+    void InvWeaponCallBack(InputAction.CallbackContext context)
     {
         // Depending on which action it is, set the equipped item to that number
         for (int i = 0; i < 3; i++)
@@ -129,12 +160,16 @@ public class PlayerControl : EntityClass
             if (context.action == invInput[i])
             {
                 equippedItem = i;
+                weapon[i].gameObject.SetActive(true);
                 break;
             }
         }
     }
 
-
+    void InvItemCallBack(InputAction.CallbackContext context)
+    {
+        
+    }
 
     void DoAttack()
     {

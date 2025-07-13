@@ -1120,7 +1120,7 @@ MonoBehaviour:
   cam: {fileID: 330585549}
   sens: 0.4
   inputBuffer: 0.2
-  weapon:
+  weaponFabs:
   - {fileID: 4034869576873527731, guid: 90f85ac22cfa31345bd9f02b8c26395c, type: 3}
   - {fileID: 4034869576873527731, guid: c0811ae3f4cff0748b735dae075e8804, type: 3}
   - {fileID: 4034869576873527731, guid: 288bd8733ed0a544faf0d9aa06e2902f, type: 3}

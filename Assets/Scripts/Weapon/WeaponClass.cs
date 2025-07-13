@@ -6,10 +6,12 @@ using Unity.VisualScripting.FullSerializer;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEngine.VFX;
+
+
 
 public class WeaponClass : MonoBehaviour
 {
-    int ownerID;                                // Get ID of weapon's owner
     public enum FiringMode
     {
         SEMI,
@@ -22,11 +24,33 @@ public class WeaponClass : MonoBehaviour
         HITSCAN_SPREAD,
         PROJECTILE
     }
+
+    [Serializable]
+    public struct WeaponStats
+    {
+        public int dmg;                                // Damage will be calculated for every bullet
+        public uint pelCount;                          // Pellet count for shotguns
+        public List<Vector2> recoilPattern;            // List of recoilVal values for recoil pattern (can also be where bullets from a shotgun go)
+        public float recoilRecoveryTime;               // How long until recoil resets in seconds
+        public float bloom;                            // Random spread of weapon, deviation from where the bullet should go, value is maximum possible deviation
+        public int rpm;                                // Fire rate: rounds per minute
+        public float knockbackStrength;                // Strength of knockback applied by weapon
+        public float range;                            // Range of weapon, for hitscan this is the max distance of the raycast, for projectiles the projectile gets destroyed after traveling this many units
+        public float projSpeed;                        // Speed of projectile
+        public WeaponType weaponType;                  // Hitscan, projectile etc
+        public FiringMode fireMode;                    // Basically, does holding down the mouse keep shooting or not
+        public ProjectileClass projectile;             // Projectile that is sent by weapon
+    }
+
+    
+    int ownerID;                                // Get ID of weapon's owner
     public WeaponType weaponType;
     public FiringMode fireMode;  // Basically, does holding down the mouse keep shooting or not
 
     // Stats
-    public int dmg = 1;                         // Damage will be calculated for every bullet
+    public WeaponStats baseStats;
+    public WeaponStats electricStats;
+    public int dmg;                             // Damage will be calculated for every bullet
     float dmgMod;                               // Damage will be multiplied by this value
     public uint pelCount;                       // Pellet count for shotguns
     int recoilInd;                              // Index of where we are in the recoil pattern
@@ -42,7 +66,7 @@ public class WeaponClass : MonoBehaviour
     public float range;                         // Range of weapon, for hitscan this is the max distance of the raycast, for projectiles the projectile gets destroyed after traveling this many units
     public float projSpeed;                     // Speed of projectile
     float projSpeedMod;                         // Speed of projectile will be multiplied by this value
-    public Vector3 offset;
+    public Vector3 offset;                      // Visual fired bullets are offset from here (Maybe projectiles will just straight up be offset)
 
     // Time
     float lastFireTime;                         // Seconds that have passed since last time weapon fired
@@ -51,11 +75,13 @@ public class WeaponClass : MonoBehaviour
     public ProjectileClass hitscanProjectile;
 
     // Model
-    public GameObject model;
     public Vector3 modelOffset;
-    GameObject modelInst;
+    public Quaternion modelOffsetRot;                // Weapon model offset rotation from character rotation (for fps perspective)
+    public Vector3 modelScale;
+    VisualEffect circlingVFX;
 
-    public void Init()
+
+    void Start()
     {
         // Set default values
         lastFireTime = 0.0f;
@@ -66,20 +92,27 @@ public class WeaponClass : MonoBehaviour
         rpmMod = 1.0f;
         knockbackMod = 1.0f;
         projSpeedMod = 1.0f;
-        if (model != null)
+
+        // Get vfx for consumable effect
+        circlingVFX = GetComponent<VisualEffect>();
+        if (circlingVFX != null)
         {
-            modelInst = Instantiate(model, transform.position, transform.rotation * Quaternion.Euler(-90.0f, 0.0f, 90.0f));
-            modelInst.transform.localScale += new Vector3(-0.95f, -0.95f, -0.95f);
+            circlingVFX.Stop();
+            Debug.Log("Stopped");
         }
+
+        transform.localScale += modelScale;
     }
 
-    public void Upd()
+    void Update()
     {
-        if (modelInst != null)
-        {
-            modelInst.transform.position = transform.position + Quaternion.LookRotation(transform.forward) * modelOffset;
-            modelInst.transform.rotation = transform.rotation * Quaternion.Euler(-90.0f, 0.0f, -90.0f);
-        }
+        transform.position += Quaternion.LookRotation(transform.forward) * modelOffset;
+        transform.rotation *= modelOffsetRot;
+    }
+
+    void FixedUpdate()
+    {
+
     }
 
     /// <summary>
@@ -166,7 +199,7 @@ public class WeaponClass : MonoBehaviour
                     {
                         // Get point and direction from where the visual projectile should fire (gun barrel)
                         // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
-                        Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y);
+                        Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
                         Vector3 offsetDir = Vector3.Normalize(origin + 50 * direction - offsetOrigin);
                         if (hitSomething)
                         {
@@ -180,7 +213,7 @@ public class WeaponClass : MonoBehaviour
 
                     if (recoilPattern.Count != 0)
                     {
-                        addRot += new Vector2(-recoilPattern[recoilInd].x * recoilValMod + UnityEngine.Random.Range(0.0f, bloom*bloomMod), recoilPattern[recoilInd].y * recoilValMod + UnityEngine.Random.Range(0.0f, bloom*bloomMod));
+                        addRot += new Vector2(-recoilPattern[recoilInd].x * recoilValMod + UnityEngine.Random.Range(0.0f, bloom * bloomMod), recoilPattern[recoilInd].y * recoilValMod + UnityEngine.Random.Range(0.0f, bloom * bloomMod));
                     }
 
                     break;
