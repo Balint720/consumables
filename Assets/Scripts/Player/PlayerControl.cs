@@ -33,7 +33,18 @@ public class PlayerControl : EntityClass
     // Inv
     public List<WeaponClass> weaponFabs;// List of WeaponClass objects that the player has
     List<WeaponClass> weapon;
-    List<int> consumable;               // Number of a consumable the player has in their inventory
+    class Consumable
+    {
+        public int count;
+        public PickUpClass.PickUpType type;
+
+        public Consumable()
+        {
+            count = 0;
+            type = PickUpClass.PickUpType.ELECTRIC;
+        }
+    }
+    List<Consumable> consumable;               // Number of a consumable the player has in their inventory
 
     private int equippedItem;           // Currently equipped item (includes weapons)
 
@@ -58,8 +69,8 @@ public class PlayerControl : EntityClass
         int i = 0;
         while (true)
         {
-            String invStr = "Inv_" + (i+1).ToString();
-                
+            String invStr = "Inv_" + (i + 1).ToString();
+
             InputAction curr = InputSystem.actions.FindAction(invStr);
             if (curr != null)
             {
@@ -76,8 +87,9 @@ public class PlayerControl : EntityClass
         // Set callback for inventory
         for (i = 0; i < invInput.Count(); i++)
         {
-            invInput[i].started += InvWeaponCallBack;
+            invInput[i].started += InvCallBack;
         }
+
 
         // Default values
         equippedItem = 0;                               // Equipped inventory slot
@@ -87,13 +99,14 @@ public class PlayerControl : EntityClass
         for (i = 0; i < weaponFabs.Count; i++)
         {
             weapon.Add(Instantiate<WeaponClass>(weaponFabs[i], transform.position, transform.rotation));
+            weapon[i].SetOwner(gameObject);
         }
 
         // Initialize consumables
-        consumable = new List<int>();
-        for (i = 0; i < Enum.GetNames(typeof(PickUpClass.PickUpType)).Length; i++)
+        consumable = new List<Consumable>();
+        for (i = 0; i < invInput.Count - weapon.Count; i++)
         {
-            consumable.Add(0);
+            consumable.Add(new Consumable());
         }
     }
 
@@ -152,10 +165,10 @@ public class PlayerControl : EntityClass
         DoAttack();
     }
 
-    void InvWeaponCallBack(InputAction.CallbackContext context)
+    void InvCallBack(InputAction.CallbackContext context)
     {
         // Depending on which action it is, set the equipped item to that number
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < weapon.Count; i++)
         {
             if (context.action == invInput[i])
             {
@@ -164,11 +177,14 @@ public class PlayerControl : EntityClass
                 break;
             }
         }
-    }
-
-    void InvItemCallBack(InputAction.CallbackContext context)
-    {
-        
+        for (int i = weapon.Count; i < invInput.Count; i++)
+        {
+            if (context.action == invInput[i])
+            {
+                UseConsumable(i - weapon.Count);
+                break;
+            }
+        }
     }
 
     void DoAttack()
@@ -224,11 +240,24 @@ public class PlayerControl : EntityClass
                 return;
             }
             // Add to inventory
-            consumable[(int)p.puType] += 1;
+            consumable[0].count += 1;
         }
 
         // Destroy pickup
         Destroy(other.gameObject);
+    }
+
+    void UseConsumable(int index)
+    {
+        if (equippedItem < weapon.Count)
+        {
+            switch (consumable[index].type)
+            {
+                case PickUpClass.PickUpType.ELECTRIC:
+                    weapon[equippedItem].SetState(WeaponClass.WeaponState.ELECTRIC);
+                    break;
+            }
+        }
     }
 
     // Getters and setters

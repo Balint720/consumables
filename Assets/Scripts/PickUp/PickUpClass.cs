@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class PickUpClass : MonoBehaviour
 {
-    public enum PickUpType
+    public enum PickUpType : int
     {
         ELECTRIC,
         BLOODBAG,

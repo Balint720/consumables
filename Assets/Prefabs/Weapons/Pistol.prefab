@@ -47,10 +47,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76a6056a3ab4e5e43b1a0239314c8640, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  weaponType: 0
-  fireMode: 0
   baseStats:
-    dmg: 0
+    dmg: 1
+    pelCount: 0
+    recoilPattern: []
+    recoilRecoveryTime: 0.8
+    bloom: 0
+    rpm: 300
+    knockbackStrength: 5
+    range: 1000
+    projSpeed: -1
+    weaponType: 0
+    fireMode: 0
+    projectile: {fileID: 4495842121767581641, guid: cbc1005230c63794e8b54c9e695f648e, type: 3}
+  modifiedStats:
+  - dmg: 2
+    pelCount: 0
+    recoilPattern: []
+    recoilRecoveryTime: 0
+    bloom: 0
+    rpm: 1000
+    knockbackStrength: 1
+    range: 600
+    projSpeed: -1
+    weaponType: 0
+    fireMode: 1
+    projectile: {fileID: 4495842121767581641, guid: cbc1005230c63794e8b54c9e695f648e, type: 3}
+  - dmg: 0
     pelCount: 0
     recoilPattern: []
     recoilRecoveryTime: 0
@@ -62,18 +85,19 @@ MonoBehaviour:
     weaponType: 0
     fireMode: 0
     projectile: {fileID: 0}
-  modifiedStats: []
-  dmg: 1
-  pelCount: 0
-  recoilPattern: []
-  recoilRecoveryTime: 0.8
-  bloom: 0
-  rpm: 300
-  knockbackStrength: 5
-  range: 1000
-  projSpeed: -1
+  - dmg: 0
+    pelCount: 0
+    recoilPattern: []
+    recoilRecoveryTime: 0
+    bloom: 0
+    rpm: 0
+    knockbackStrength: 0
+    range: 0
+    projSpeed: 0
+    weaponType: 0
+    fireMode: 0
+    projectile: {fileID: 0}
   offset: {x: 0.7, y: -0.28, z: 2}
-  hitscanProjectile: {fileID: 4495842121767581641, guid: cbc1005230c63794e8b54c9e695f648e, type: 3}
   modelOffset: {x: 0.7, y: -0.2, z: 0.7}
   modelOffsetRot: {x: -0.5212065, y: -0.47783104, z: -0.47759777, w: 0.52146107}
   modelScale: {x: -0.95, y: -0.95, z: -0.95}
