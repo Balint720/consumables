@@ -35,14 +35,52 @@ public class PlayerControl : EntityClass
     List<WeaponClass> weapon;
     class Consumable
     {
-        public int count;
-        public PickUpClass.PickUpType type;
+        int count;
+        PickUpClass.PickUpType type;
 
         public Consumable()
         {
             count = 0;
             type = PickUpClass.PickUpType.ELECTRIC;
         }
+
+        public bool ReduceCount(int num)
+        {
+            if (count > 0)
+            {
+                count -= num;
+                return true;
+            }
+            return false;
+        }
+
+        public bool IncreaseCount(int num)
+        {
+            if (count < 999)
+            {
+                count += num;
+                return true;
+            }
+            return false;
+        }
+
+        public int GetCount()
+        {
+            return count;
+        }
+
+        public PickUpClass.PickUpType GetPUType()
+        {
+            return type;
+        }
+
+        public bool SetType(PickUpClass.PickUpType typeToSet)
+        {
+            type = typeToSet;
+            return true;
+        }
+
+
     }
     List<Consumable> consumable;               // Number of a consumable the player has in their inventory
 
@@ -168,21 +206,29 @@ public class PlayerControl : EntityClass
     void InvCallBack(InputAction.CallbackContext context)
     {
         // Depending on which action it is, set the equipped item to that number
-        for (int i = 0; i < weapon.Count; i++)
+        for (int i = 0; i < invInput.Count; i++)
         {
             if (context.action == invInput[i])
             {
-                equippedItem = i;
-                weapon[i].gameObject.SetActive(true);
-                break;
+                if (i < weapon.Count)
+                {
+                    equippedItem = i;
+                    weapon[i].gameObject.SetActive(true);
+                    break;
+                }
+                else
+                {
+                    UseConsumable(i - weapon.Count);
+                    break;
+                }
+                
             }
         }
         for (int i = weapon.Count; i < invInput.Count; i++)
         {
             if (context.action == invInput[i])
             {
-                UseConsumable(i - weapon.Count);
-                break;
+                
             }
         }
     }
@@ -240,7 +286,7 @@ public class PlayerControl : EntityClass
                 return;
             }
             // Add to inventory
-            consumable[0].count += 1;
+            consumable[0].IncreaseCount(1);
         }
 
         // Destroy pickup
@@ -251,12 +297,18 @@ public class PlayerControl : EntityClass
     {
         if (equippedItem < weapon.Count)
         {
-            switch (consumable[index].type)
+            if (consumable[index].GetCount() > 0)
             {
-                case PickUpClass.PickUpType.ELECTRIC:
-                    weapon[equippedItem].SetState(WeaponClass.WeaponState.ELECTRIC);
-                    break;
+                switch (consumable[index].GetPUType())
+                {
+                    case PickUpClass.PickUpType.ELECTRIC:
+                        weapon[equippedItem].SetState(WeaponClass.WeaponState.ELECTRIC);
+                        break;
+                }
+
+                consumable[index].ReduceCount(1);
             }
+            
         }
     }
 
