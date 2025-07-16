@@ -21,6 +21,7 @@ public class ProjectileClass : MonoBehaviour
     public float speed;                     // Speed of projectile
     public float accel;                     // Acceleration of projectile
     public float range;                     // Range at which projectile disappears
+    public float knockbackStrength;             // Strength of knockback applied by weapon
 
     private Vector3 spawnPos;               // Spawn position
     private float spawnTime;                // How long projectile has been alive
@@ -76,7 +77,7 @@ public class ProjectileClass : MonoBehaviour
             {
                 // Try to get entityclass from hit collider, then make it call its own takedamage function
                 EntityClass entityHit = col.gameObject.GetComponent<EntityClass>();
-                entityHit.TakeDamageKnockback(dmg, Vector3.zero);
+                entityHit.TakeDamageKnockback(dmg, knockbackStrength * dir);
                 entityHit.OnGettingHit(GetOwner());
             }
             catch (Exception e)
@@ -115,12 +116,16 @@ public class ProjectileClass : MonoBehaviour
         }
     }
 
-    public void SetValuesOfProj(int dmgIn, float speedIn)
+    public void SetValuesOfProj(int dmgIn, float speedIn = -1.0f, float knockbackStrengthIn = -1.0f)
     {
         dmg = dmgIn;
-        if (speedIn > 0.0f)
+        if (speedIn >= 0.0f)
         {
             speed = speedIn;
+        }
+        if (knockbackStrengthIn >= 0.0f)
+        {
+            knockbackStrength = knockbackStrengthIn;
         }
     }
 }

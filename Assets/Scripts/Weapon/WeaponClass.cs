@@ -1,20 +1,24 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.VisualScripting;
 using Unity.VisualScripting.FullSerializer;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UIElements;
+using UnityEngine.VFX;
+
+
 
 public class WeaponClass : MonoBehaviour
 {
-    int ownerID;                                // Get ID of weapon's owner
     public enum FiringMode
     {
         SEMI,
         AUTO
-    };
+    }
 
     public enum WeaponType
     {
@@ -22,37 +26,68 @@ public class WeaponClass : MonoBehaviour
         HITSCAN_SPREAD,
         PROJECTILE
     }
-    public WeaponType weaponType;
-    public FiringMode fireMode;  // Basically, does holding down the mouse keep shooting or not
+
+    public enum WeaponState
+    {
+        BASE,
+        ELECTRIC
+    }
+
+    [Serializable]
+    public struct WeaponStats
+    {
+        public int dmg;                                // Damage will be calculated for every bullet
+        public uint pelCount;                          // Pellet count for shotguns
+        public List<Vector2> recoilPattern;            // List of recoilVal values for recoil pattern (can also be where bullets from a shotgun go)
+        public float recoilRecoveryTime;               // How long until recoil resets in seconds
+        public float bloom;                            // Random spread of weapon, deviation from where the bullet should go, value is maximum possible deviation
+        public int rpm;                                // Fire rate: rounds per minute
+        public float knockbackStrength;                // Strength of knockback applied by weapon
+        public float range;                            // Range of weapon, for hitscan this is the max distance of the raycast, for projectiles the projectile gets destroyed after traveling this many units
+        public float projSpeed;                        // Speed of projectile
+        public WeaponType weaponType;                  // Hitscan, projectile etc
+        public FiringMode fireMode;                    // Basically, does holding down the mouse keep shooting or not
+        public ProjectileClass projectile;             // Projectile that is sent by weapon
+    }
+
+
+    int ownerID;                                // Get ID of weapon's owner
+
+    // State
+    WeaponState w_state;
+    WeaponState prev_w_state;
+    bool isActive;
+    bool isPartPlaying;
 
     // Stats
-    public int dmg = 1;                         // Damage will be calculated for every bullet
+    public WeaponStats baseStats;
+    public List<WeaponStats> modifiedStats;
+    WeaponStats currStats;
+    float currModDur;
     float dmgMod;                               // Damage will be multiplied by this value
-    public uint pelCount;                       // Pellet count for shotguns
     int recoilInd;                              // Index of where we are in the recoil pattern
     float recoilValMod;                         // Recoil will be multiplied by this value
-    public List<Vector2> recoilPattern;         // List of recoilVal values for recoil pattern (can also be where bullets from a shotgun go)
-    public float recoilRecoveryTime;            // How long until recoil resets in seconds
-    public float bloom;                         // Random spread of weapon, deviation from where the bullet should go, value is maximum possible deviation
     float bloomMod;                             // Maximum bloom will be multiplied by this value
-    public int rpm;                             // Fire rate: rounds per minute
     float rpmMod;                               // RPM will be multiplied by this value
-    public float knockbackStrength;             // Strength of knockback applied by weapon
     float knockbackMod;                         // KnockbackStrength will be multiplied by this value
-    public float range;                         // Range of weapon, for hitscan this is the max distance of the raycast, for projectiles the projectile gets destroyed after traveling this many units
-    public float projSpeed;                     // Speed of projectile
     float projSpeedMod;                         // Speed of projectile will be multiplied by this value
-    public Vector3 offset;
+    public Vector3 offset;                      // Visual fired bullets are offset from here (Maybe projectiles will just straight up be offset)
 
     // Time
     float lastFireTime;                         // Seconds that have passed since last time weapon fired
 
-    // Projectiles
-    public ProjectileClass hitscanProjectile;
+    // Model
+    public Vector3 modelOffset;
+    public Quaternion modelOffsetRot;                // Weapon model offset rotation from character rotation (for fps perspective)
+    public Vector3 modelScale;
+    VisualEffect circlingVFX;
+    VFXRenderer circlingVFXRenderer;
+    MeshRenderer[] renderers;
 
-    public void Init()
+
+    void Start()
     {
-        // Set default values
+        // Set intial values for multipliers
         lastFireTime = 0.0f;
         dmgMod = 1.0f;
         recoilInd = 0;
@@ -61,6 +96,50 @@ public class WeaponClass : MonoBehaviour
         rpmMod = 1.0f;
         knockbackMod = 1.0f;
         projSpeedMod = 1.0f;
+        currModDur = 0.0f;
+
+        // Set stats to base stats
+        currStats = baseStats;
+        w_state = WeaponState.BASE;
+
+        // On spawn be unequipped
+        isActive = false;
+
+        // Get renderer to hide and show weapon
+        renderers = GetComponentsInChildren<MeshRenderer>();
+
+        // Get vfx for consumable effect
+        circlingVFX = GetComponent<VisualEffect>();
+        if (circlingVFX != null)
+        {
+            circlingVFXRenderer = circlingVFX.GetComponent<VFXRenderer>();
+        }
+        isPartPlaying = true;
+
+        transform.localScale += modelScale;
+    }
+
+    void Update()
+    {
+        if (isActive)
+        {
+            transform.position += Quaternion.LookRotation(transform.forward) * modelOffset;
+            transform.rotation *= modelOffsetRot;
+        }
+    }
+
+    void FixedUpdate()
+    {
+        ApplyModifier();
+
+        if (currModDur > 0.0f && w_state != WeaponState.BASE)
+        {
+            currModDur -= Time.fixedDeltaTime;
+        }
+        else
+        {
+            w_state = WeaponState.BASE;
+        }
     }
 
     /// <summary>
@@ -74,7 +153,7 @@ public class WeaponClass : MonoBehaviour
     {
         // Shoot ray into direction from origin with a maximum range
         RaycastHit hitInfo;
-        Physics.Raycast(origin, direction, out hitInfo, range);
+        Physics.Raycast(origin, direction, out hitInfo, currStats.range);
 
         return hitInfo;
     }
@@ -88,11 +167,11 @@ public class WeaponClass : MonoBehaviour
     void ShootProjectile(Vector3 origin, Vector3 direction, Quaternion rotation)
     {
         // Set the direction and offset IF there is a hitscanProjectile
-        ProjectileClass p = Instantiate(hitscanProjectile, origin, rotation);
+        ProjectileClass p = Instantiate(currStats.projectile, origin, rotation);
         p.SetDirection(direction);
 
         // Set projectile values and owner
-        p.SetValuesOfProj((int)(dmg * dmgMod), projSpeed * projSpeedMod);
+        p.SetValuesOfProj((int)(currStats.dmg * dmgMod), currStats.projSpeed * projSpeedMod, currStats.knockbackStrength * knockbackMod);
         p.SetOwner(ownerID);
     }
 
@@ -111,25 +190,25 @@ public class WeaponClass : MonoBehaviour
         float sinceLastFire = Time.time - lastFireTime;
 
         // Only shoot if rate of fire allows it
-        if (sinceLastFire > 60.0f / rpm)
+        if (sinceLastFire > 60.0f / (currStats.rpm * rpmMod))
         {
             lastFireTime = Time.time;
             RaycastHit hitInfo;
             bool hitSomething = false;
             // Different methods for hitscan weapons, projectile weapons
-            switch (weaponType)
+            switch (currStats.weaponType)
             {
                 case WeaponType.HITSCAN_SINGLE:
                     // Reset recoil if enough time has passed; Otherwise progress recoil pattern
-                    if (sinceLastFire >= recoilRecoveryTime)
+                    if (sinceLastFire >= currStats.recoilRecoveryTime)
                     {
                         recoilInd = 0;
                     }
                     else
                     {
-                        if (++recoilInd >= recoilPattern.Count)
+                        if (++recoilInd >= currStats.recoilPattern.Count)
                         {
-                            recoilInd = recoilPattern.Count - 1;
+                            recoilInd = currStats.recoilPattern.Count - 1;
                         }
                     }
 
@@ -143,11 +222,11 @@ public class WeaponClass : MonoBehaviour
                     }
 
 
-                    if (hitscanProjectile != null)
+                    if (currStats.projectile != null)
                     {
                         // Get point and direction from where the visual projectile should fire (gun barrel)
                         // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
-                        Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y);
+                        Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
                         Vector3 offsetDir = Vector3.Normalize(origin + 50 * direction - offsetOrigin);
                         if (hitSomething)
                         {
@@ -159,16 +238,16 @@ public class WeaponClass : MonoBehaviour
                         ShootProjectile(offsetOrigin, offsetDir, rotation);
                     }
 
-                    if (recoilPattern.Count != 0)
+                    if (currStats.recoilPattern.Count != 0)
                     {
-                        addRot += new Vector2(-recoilPattern[recoilInd].x, recoilPattern[recoilInd].y);
+                        addRot += new Vector2(-currStats.recoilPattern[recoilInd].x * recoilValMod + UnityEngine.Random.Range(0.0f, currStats.bloom * bloomMod), currStats.recoilPattern[recoilInd].y * recoilValMod + UnityEngine.Random.Range(0.0f, currStats.bloom * bloomMod));
                     }
 
                     break;
 
                 case WeaponType.HITSCAN_SPREAD:
                     // Shoot the pelCount amount of pellets
-                    for (int i = 0; i < pelCount; i++)
+                    for (int i = 0; i < currStats.pelCount; i++)
                     {
                         // Calculate pellet direction and rotation
                         Vector3 pelDir = CalcRecoiledDir(direction, i);
@@ -185,7 +264,7 @@ public class WeaponClass : MonoBehaviour
                         }
 
                         // Cosmetic projectile
-                        if (hitscanProjectile != null)
+                        if (currStats.projectile != null)
                         {
                             // Get point and direction from where the visual projectile should fire (gun barrel)
                             // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
@@ -214,7 +293,7 @@ public class WeaponClass : MonoBehaviour
     /// <returns></returns>
     Vector3 CalcRecoiledDir(Vector3 dir, int ind)
     {
-        Vector3 newDir = Quaternion.Euler(-recoilPattern[ind].x, recoilPattern[ind].y, 0.0f) * Vector3.forward;
+        Vector3 newDir = Quaternion.Euler(-currStats.recoilPattern[ind].x, currStats.recoilPattern[ind].y, 0.0f) * Vector3.forward;
         Quaternion worldToLocalRotate = Quaternion.FromToRotation(Vector3.forward, dir);
         newDir = Quaternion.Euler(worldToLocalRotate.eulerAngles.x, worldToLocalRotate.eulerAngles.y, 0.0f) * newDir;
 
@@ -229,7 +308,7 @@ public class WeaponClass : MonoBehaviour
     /// <returns></returns>
     Quaternion CalcRecoiledRot(Quaternion rot, int ind)
     {
-        Quaternion newRot = Quaternion.Euler(-recoilPattern[ind].x, recoilPattern[ind].y, 0.0f) * rot;
+        Quaternion newRot = Quaternion.Euler(-currStats.recoilPattern[ind].x, currStats.recoilPattern[ind].y, 0.0f) * rot;
 
         return newRot;
     }
@@ -242,7 +321,7 @@ public class WeaponClass : MonoBehaviour
             {
                 // Try to get entityclass from hit collider, then make it call its own takedamage function
                 EntityClass entityHit = hitInfo.collider.gameObject.GetComponent<EntityClass>();
-                entityHit.TakeDamageKnockback(dmg, knockbackStrength * dir);
+                entityHit.TakeDamageKnockback((int)(currStats.dmg * dmgMod), currStats.knockbackStrength * knockbackMod * dir);
                 entityHit.OnGettingHit(GetOwner());
             }
             catch (Exception e)
@@ -259,11 +338,35 @@ public class WeaponClass : MonoBehaviour
     /// Modifies weapon behaviour based on consumable used
     /// </summary>
     /// <param name="pu">Type of consumable</param>
-    void ApplyModifier(PickUpClass.PickUpType pu)
+    public void ApplyModifier()
     {
-        switch (pu)
+        switch (w_state)
         {
-            case PickUpClass.PickUpType.ELECTRIC:
+            case WeaponState.BASE:
+                currStats = baseStats;
+                if (circlingVFX != null)
+                {
+                    if (isPartPlaying)
+                    {
+                        circlingVFX.Stop();
+                        isPartPlaying = false;
+                    }
+                }
+                break;
+            case WeaponState.ELECTRIC:
+                if (modifiedStats.Count > (int)PickUpClass.PickUpType.ELECTRIC)
+                {
+                    currStats = modifiedStats[(int)PickUpClass.PickUpType.ELECTRIC];
+                }
+                if (circlingVFX != null && isActive)
+                {
+                    if (!isPartPlaying)
+                    {
+                        circlingVFX.Play();
+                        isPartPlaying = true;
+                    }
+                }
+
                 break;
             default:
                 break;
@@ -289,6 +392,60 @@ public class WeaponClass : MonoBehaviour
 
     public FiringMode GetFiringMode()
     {
-        return fireMode;
+        return currStats.fireMode;
+    }
+
+    public void SetState(WeaponState newState, float duration)
+    {
+        w_state = newState;
+        switch (newState)
+        {
+            case WeaponState.ELECTRIC:
+                break;
+            default:
+                break;
+        }
+        currModDur += duration;
+
+    }
+
+    public bool Equip()
+    {
+        isActive = true;
+        SetRender(true);
+        return true;
+    }
+
+    public bool UnEquip()
+    {
+        isActive = false;
+        SetRender(false);
+        return true;
+    }
+
+    void SetRender(bool val)
+    {
+        if (renderers != null)
+        {
+            for (int i = 0; i < renderers.Count(); i++)
+            {
+                renderers[i].enabled = val;
+            }
+        }
+
+        if (circlingVFX != null && circlingVFXRenderer != null)
+        {
+            circlingVFX.pause = !val;
+            circlingVFXRenderer.enabled = val;
+        }
+    }
+
+    public void SendOnPlay()
+    {
+        circlingVFX.Play();
+    }
+    public void SendOnStop()
+    {
+        circlingVFX.Stop();
     }
 }

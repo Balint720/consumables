@@ -10,8 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 4866820643622809822}
   - component: {fileID: 4034869576873527731}
-  - component: {fileID: 3807186989717451809}
-  - component: {fileID: 1279119524366702004}
   m_Layer: 0
   m_Name: AssaultRifle
   m_TagString: Untagged
@@ -27,8 +25,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7073670547599562193}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.0017138557, y: 0.18737899, z: -0.00032693174, w: 0.98228616}
+  m_LocalPosition: {x: -14.6437025, y: 1.0799999, z: -14.220961}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -48,6 +46,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   weaponType: 0
   fireMode: 1
+  baseStats:
+    dmg: 1
+    pelCount: 0
+    recoilPattern:
+    - {x: 0, y: 0}
+    - {x: 1, y: 1}
+    - {x: 1, y: 1}
+    - {x: 2, y: 1}
+    recoilRecoveryTime: 0.8
+    bloom: 1
+    rpm: 1000
+    knockbackStrength: 3
+    range: 200
+    projSpeed: -1
+    weaponType: 0
+    fireMode: 1
+    projectile: {fileID: 4495842121767581641, guid: cbc1005230c63794e8b54c9e695f648e, type: 3}
+  modifiedStats: []
   dmg: 1
   pelCount: 0
   recoilPattern:
@@ -56,63 +72,13 @@ MonoBehaviour:
   - {x: 1, y: 1}
   - {x: 2, y: 1}
   recoilRecoveryTime: 0.8
-  bloom: 0
+  bloom: 1
   rpm: 1000
   knockbackStrength: 3
   range: 200
   projSpeed: -1
   offset: {x: 0.2, y: -0.2, z: 0.4}
   hitscanProjectile: {fileID: 4495842121767581641, guid: cbc1005230c63794e8b54c9e695f648e, type: 3}
---- !u!33 &3807186989717451809
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7073670547599562193}
-  m_Mesh: {fileID: 0}
---- !u!23 &1279119524366702004
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7073670547599562193}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 0}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_AdditionalVertexStreams: {fileID: 0}
+  modelOffset: {x: 0, y: 0, z: 0}
+  modelOffsetRot: {x: 0, y: 0, z: 0, w: 0}
+  modelScale: {x: 0, y: 0, z: 0}
