@@ -2055,6 +2055,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   puType: 0
+  num: 1
 --- !u!1 &1544417177
 GameObject:
   m_ObjectHideFlags: 0

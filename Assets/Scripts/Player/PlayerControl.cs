@@ -8,6 +8,61 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
+class Consumable
+{
+    public static float consumableDuration = 30.0f;                // How long consumable items last
+    int count;
+    PickUpClass.PickUpType type;
+
+    public Consumable()
+    {
+        count = 0;
+        type = PickUpClass.PickUpType.ELECTRIC;
+    }
+
+    public Consumable(int i_count, PickUpClass.PickUpType i_type)
+    {
+        count = i_count;
+        type = i_type;
+    }
+
+    public bool ReduceCount(int num)
+    {
+        if (count > 0)
+        {
+            count -= num;
+            return true;
+        }
+        return false;
+    }
+
+    public bool IncreaseCount(int num)
+    {
+        if (count < 999)
+        {
+            count += num;
+            return true;
+        }
+        return false;
+    }
+
+    public int GetCount()
+    {
+        return count;
+    }
+
+    public PickUpClass.PickUpType GetPUType()
+    {
+        return type;
+    }
+
+    public bool SetType(PickUpClass.PickUpType typeToSet)
+    {
+        type = typeToSet;
+        return true;
+    }
+}
+
 public class PlayerControl : EntityClass
 {
     // Camera
@@ -33,58 +88,10 @@ public class PlayerControl : EntityClass
     // Inv
     public List<WeaponClass> weaponFabs;// List of WeaponClass objects that the player has
     List<WeaponClass> weapon;
-    class Consumable
-    {
-        int count;
-        PickUpClass.PickUpType type;
 
-        public Consumable()
-        {
-            count = 0;
-            type = PickUpClass.PickUpType.ELECTRIC;
-        }
-
-        public bool ReduceCount(int num)
-        {
-            if (count > 0)
-            {
-                count -= num;
-                return true;
-            }
-            return false;
-        }
-
-        public bool IncreaseCount(int num)
-        {
-            if (count < 999)
-            {
-                count += num;
-                return true;
-            }
-            return false;
-        }
-
-        public int GetCount()
-        {
-            return count;
-        }
-
-        public PickUpClass.PickUpType GetPUType()
-        {
-            return type;
-        }
-
-        public bool SetType(PickUpClass.PickUpType typeToSet)
-        {
-            type = typeToSet;
-            return true;
-        }
-
-
-    }
     List<Consumable> consumable;               // Number of a consumable the player has in their inventory
 
-    private int equippedItem;           // Currently equipped item (includes weapons)
+    int equippedItem;           // Currently equipped item (includes weapons)
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -138,13 +145,17 @@ public class PlayerControl : EntityClass
         {
             weapon.Add(Instantiate<WeaponClass>(weaponFabs[i], transform.position, transform.rotation));
             weapon[i].SetOwner(gameObject);
+            weapon[i].UnEquip();
         }
+
+        equippedItem = 0;
+        weapon[equippedItem].Equip();
 
         // Initialize consumables
         consumable = new List<Consumable>();
         for (i = 0; i < invInput.Count - weapon.Count; i++)
         {
-            consumable.Add(new Consumable());
+            consumable.Add(new Consumable(0, (PickUpClass.PickUpType)i));
         }
     }
 
@@ -184,15 +195,6 @@ public class PlayerControl : EntityClass
             addedRotation = Vector2.zero;
         }
 
-        // Weapon update
-        for (int i = 0; i < weapon.Count; i++)
-        {
-            if (i != equippedItem && weapon[i] != null)
-            {
-                weapon[i].gameObject.SetActive(false);
-            }
-        }
-
         weapon[equippedItem].transform.position = transform.position;
         weapon[equippedItem].transform.rotation = Quaternion.Euler(rotation.x, rotation.y, 0);
     }
@@ -212,8 +214,9 @@ public class PlayerControl : EntityClass
             {
                 if (i < weapon.Count)
                 {
+                    weapon[equippedItem].UnEquip();
                     equippedItem = i;
-                    weapon[i].gameObject.SetActive(true);
+                    weapon[i].Equip();
                     break;
                 }
                 else
@@ -221,14 +224,7 @@ public class PlayerControl : EntityClass
                     UseConsumable(i - weapon.Count);
                     break;
                 }
-                
-            }
-        }
-        for (int i = weapon.Count; i < invInput.Count; i++)
-        {
-            if (context.action == invInput[i])
-            {
-                
+
             }
         }
     }
@@ -302,13 +298,13 @@ public class PlayerControl : EntityClass
                 switch (consumable[index].GetPUType())
                 {
                     case PickUpClass.PickUpType.ELECTRIC:
-                        weapon[equippedItem].SetState(WeaponClass.WeaponState.ELECTRIC);
+                        weapon[equippedItem].SetState(WeaponClass.WeaponState.ELECTRIC, Consumable.consumableDuration);
                         break;
                 }
 
                 consumable[index].ReduceCount(1);
             }
-            
+
         }
     }
 

@@ -6,6 +6,7 @@ using Unity.VisualScripting;
 using Unity.VisualScripting.FullSerializer;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 using UnityEngine.VFX;
 
@@ -54,11 +55,15 @@ public class WeaponClass : MonoBehaviour
 
     // State
     WeaponState w_state;
+    WeaponState prev_w_state;
+    bool isActive;
+    bool isPartPlaying;
 
     // Stats
     public WeaponStats baseStats;
     public List<WeaponStats> modifiedStats;
     WeaponStats currStats;
+    float currModDur;
     float dmgMod;                               // Damage will be multiplied by this value
     int recoilInd;                              // Index of where we are in the recoil pattern
     float recoilValMod;                         // Recoil will be multiplied by this value
@@ -76,6 +81,8 @@ public class WeaponClass : MonoBehaviour
     public Quaternion modelOffsetRot;                // Weapon model offset rotation from character rotation (for fps perspective)
     public Vector3 modelScale;
     VisualEffect circlingVFX;
+    VFXRenderer circlingVFXRenderer;
+    MeshRenderer[] renderers;
 
 
     void Start()
@@ -89,32 +96,50 @@ public class WeaponClass : MonoBehaviour
         rpmMod = 1.0f;
         knockbackMod = 1.0f;
         projSpeedMod = 1.0f;
+        currModDur = 0.0f;
 
         // Set stats to base stats
         currStats = baseStats;
         w_state = WeaponState.BASE;
 
+        // On spawn be unequipped
+        isActive = false;
+
+        // Get renderer to hide and show weapon
+        renderers = GetComponentsInChildren<MeshRenderer>();
 
         // Get vfx for consumable effect
         circlingVFX = GetComponent<VisualEffect>();
         if (circlingVFX != null)
         {
-            circlingVFX.Stop();
-            Debug.Log("Stopped");
+            circlingVFXRenderer = circlingVFX.GetComponent<VFXRenderer>();
         }
+        isPartPlaying = true;
 
         transform.localScale += modelScale;
     }
 
     void Update()
     {
-        transform.position += Quaternion.LookRotation(transform.forward) * modelOffset;
-        transform.rotation *= modelOffsetRot;
+        if (isActive)
+        {
+            transform.position += Quaternion.LookRotation(transform.forward) * modelOffset;
+            transform.rotation *= modelOffsetRot;
+        }
     }
 
     void FixedUpdate()
     {
         ApplyModifier();
+
+        if (currModDur > 0.0f && w_state != WeaponState.BASE)
+        {
+            currModDur -= Time.fixedDeltaTime;
+        }
+        else
+        {
+            w_state = WeaponState.BASE;
+        }
     }
 
     /// <summary>
@@ -319,14 +344,29 @@ public class WeaponClass : MonoBehaviour
         {
             case WeaponState.BASE:
                 currStats = baseStats;
-                if (circlingVFX != null) circlingVFX.Stop();
+                if (circlingVFX != null)
+                {
+                    if (isPartPlaying)
+                    {
+                        circlingVFX.Stop();
+                        isPartPlaying = false;
+                    }
+                }
                 break;
             case WeaponState.ELECTRIC:
                 if (modifiedStats.Count > (int)PickUpClass.PickUpType.ELECTRIC)
                 {
                     currStats = modifiedStats[(int)PickUpClass.PickUpType.ELECTRIC];
-                    if (circlingVFX != null) circlingVFX.Play();
                 }
+                if (circlingVFX != null && isActive)
+                {
+                    if (!isPartPlaying)
+                    {
+                        circlingVFX.Play();
+                        isPartPlaying = true;
+                    }
+                }
+
                 break;
             default:
                 break;
@@ -355,8 +395,57 @@ public class WeaponClass : MonoBehaviour
         return currStats.fireMode;
     }
 
-    public void SetState(WeaponState newState)
+    public void SetState(WeaponState newState, float duration)
     {
         w_state = newState;
+        switch (newState)
+        {
+            case WeaponState.ELECTRIC:
+                break;
+            default:
+                break;
+        }
+        currModDur += duration;
+
+    }
+
+    public bool Equip()
+    {
+        isActive = true;
+        SetRender(true);
+        return true;
+    }
+
+    public bool UnEquip()
+    {
+        isActive = false;
+        SetRender(false);
+        return true;
+    }
+
+    void SetRender(bool val)
+    {
+        if (renderers != null)
+        {
+            for (int i = 0; i < renderers.Count(); i++)
+            {
+                renderers[i].enabled = val;
+            }
+        }
+
+        if (circlingVFX != null && circlingVFXRenderer != null)
+        {
+            circlingVFX.pause = !val;
+            circlingVFXRenderer.enabled = val;
+        }
+    }
+
+    public void SendOnPlay()
+    {
+        circlingVFX.Play();
+    }
+    public void SendOnStop()
+    {
+        circlingVFX.Stop();
     }
 }
