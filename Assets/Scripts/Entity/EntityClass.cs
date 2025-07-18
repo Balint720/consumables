@@ -125,7 +125,8 @@ public class EntityClass : MonoBehaviour
         }
 
         // Add speeds together
-        speed = forwardsSpeed * transform.forward + sideSpeed * transform.right + new Vector3(0, vertSpeed, 0);
+        speed = forwardsSpeed * transform.forward + sideSpeed * transform.right;
+        speed += new Vector3(0, vertSpeed, 0);
 
         // Add knockback then reset it
         speed += knockback * knockbackMod;
@@ -143,7 +144,7 @@ public class EntityClass : MonoBehaviour
     /// <param name="nextPos">Position in world space to move to</param>
     /// <param name="rot">Rotation of character</param>
     /// <param name="doJump">Does the character jump?</param>
-    protected void CalcMovementGrounded(Vector3 nextPos, Quaternion rot, bool doJump = false)
+    protected void CalcMovementGrounded(Vector3 nextPos, Quaternion rot, bool doJump = false, float distanceCap = 0.0f)
     {
         // Get direction from next position and current position
         Vector3 dirWhole = nextPos - transform.position;
@@ -154,6 +155,15 @@ public class EntityClass : MonoBehaviour
         moveVect.x = Vector3.Dot(dir, transform.right);
         moveVect.y = doJump ? 1.0f : 0.0f;
         rotationQuat = rot;
+
+        float HSpeed = new Vector2(speed.x, speed.z).magnitude;
+        float timeToStop = HSpeed / HAccel;
+
+        if (dirWhole.sqrMagnitude < Math.Pow(HSpeed * timeToStop - (1 / 2) * HAccel * timeToStop * timeToStop,2)
+            || dirWhole.sqrMagnitude < distanceCap*distanceCap)
+        {
+            moveVect.x = 0.0f; moveVect.z = 0.0f;
+        }
 
         // Calc movement but do not apply it, apply it with different setting
         CalcMovementGrounded(false);

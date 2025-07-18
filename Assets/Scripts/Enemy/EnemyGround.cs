@@ -1,4 +1,8 @@
 using System;
+using System.ComponentModel;
+using System.Linq;
+using NUnit.Framework.Constraints;
+using TMPro;
 using Unity.AI.Navigation;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -8,21 +12,36 @@ using UnityEngine.UIElements;
 public class EnemyGround : EntityClass
 {
     public GameObject DebugSphere;                      // Sphere to show next nav position
+    GameObject[] DebugPrimitives;
     // Movement variables                       
     NavMeshAgent nav;                                   // NavMeshAgent Unity component
     EntityClass entToChase;                             // Entity to chase in chase mode
+    
+    public float howCloseToNavPos;                      // How close is close enough for destination in nav mesh
 
     // Navigation settings
     public float chaseRadius;                           // If chased entity is this close, stop moving towards them
+    public bool keepDistance;                           // If chased entity is closer than chase radius, should we back up or not care if we are closer
 
     // States
     public enum EnemyState
     {
         PATROL,
         CHASE,
+        DASHSTART,
+        DASH
     };
 
     EnemyState enState;                                 // State of enemy
+
+    // Dash
+    public float dashCooldown;
+    public float dashDistance;
+    public float dashSpeedMultiplier;
+    float currDashCooldown;
+    bool dashReady;
+    bool doDash;
+    bool overrideMovementCalc;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -34,13 +53,23 @@ public class EnemyGround : EntityClass
 
         // Set up nav mesh agent component
         nav.updatePosition = false; nav.updateRotation = false;
-        nav.speed = HSpeedCap;
-        nav.acceleration = HAccel;
-        nav.stoppingDistance = chaseRadius;
         nav.autoTraverseOffMeshLink = true;
 
         // Assign state
         enState = EnemyState.PATROL;
+
+        // Initialize values
+        currDashCooldown = 0.0f;
+        dashReady = true;
+        overrideMovementCalc = false;
+
+        // Debug primitives
+        DebugPrimitives = new GameObject[10];
+        for (int i = 0; i < 10; i++)
+        {
+            DebugPrimitives[i] = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            DebugPrimitives[i].GetComponent<SphereCollider>().enabled = false;
+        }
         
     }
 
@@ -52,6 +81,16 @@ public class EnemyGround : EntityClass
 
     void FixedUpdate()
     {
+        // Decrease cooldowns
+        if (currDashCooldown > 0.0f)
+        {
+            currDashCooldown -= Time.fixedDeltaTime;
+        }
+        else
+        {
+            dashReady = true;
+        }
+
         // Do these calculations if enemy is alive (HP larger than 0)
         if (HP > 0)
         {
@@ -59,32 +98,36 @@ public class EnemyGround : EntityClass
             Vector3 dir = Vector3.zero;
             Quaternion rot = Quaternion.identity;
 
-            if (enState == EnemyState.CHASE)
+            switch (enState)
             {
-                // Look towards the entity that is being chased if it can see it
-                dir = (entToChase.transform.position - transform.position).normalized;
+                case EnemyState.CHASE:
+                case EnemyState.DASH:
+                    if (entToChase != null)
+                    {
+                        // Look towards the entity that is being chased if it can see it
+                        dir = (entToChase.transform.position - transform.position).normalized;
 
-                // Cast a ray towards the entity, which if not blocked by any colliders means we look at them, otherwise we look towards the direction we are going
-                RaycastHit rayHit;
-                Physics.Raycast(transform.position, dir, out rayHit);
-                if (rayHit.collider.gameObject.name == entToChase.gameObject.name)
-                {
-                    if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }
-                }
-                else
-                {
+                        // Cast a ray towards the entity, which if not blocked by any colliders means we look at them, otherwise we look towards the direction we are going
+                        RaycastHit rayHit;
+                        Physics.Raycast(transform.position, dir, out rayHit);
+                        if (rayHit.collider.gameObject.name == entToChase.gameObject.name)
+                        {
+                            if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }
+                        }
+                        else
+                        {
+                            dir = (nav.steeringTarget - transform.position).normalized;
+                            if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }               // Rotation to the position being moved to
+                        }
+                    }
+                    break;
+                default:
                     dir = (nav.steeringTarget - transform.position).normalized;
                     if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }               // Rotation to the position being moved to
-                }
+                    break;
             }
-            // If we are not chasing anyone, then just look towards where it is going
-            else
-            {
-                dir = (nav.steeringTarget - transform.position).normalized;
-                if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }               // Rotation to the position being moved to
-            }
-            
-            // Reset jumping variable
+
+            // Jumping variable
             bool doJump = false;
 
             // Are we standing on a mesh link, if so, handle it
@@ -92,7 +135,7 @@ public class EnemyGround : EntityClass
             {
                 // Get current link that we are on
                 NavMeshLink link = nav.currentOffMeshLinkData.owner.GetComponent<NavMeshLink>();
-                
+
                 // Check if the distance between the link's start- and endpoint is smaller than the distance of our current position and the point we want to go to
                 if ((link.endPoint - link.startPoint).sqrMagnitude < (nav.destination - transform.position).sqrMagnitude)
                 {
@@ -117,9 +160,7 @@ public class EnemyGround : EntityClass
             }
 
             // Calculate the movement based on navmesh next position using entity movement
-            CalcMovementGrounded(nav.nextPosition, rot, doJump);
-
-            // Set the position of nav to the actual position of gameobject
+            CalcMovementGrounded(nav.steeringTarget, rot, doJump, howCloseToNavPos);
             nav.nextPosition = transform.position;
 
             // Based on enemy state:
@@ -131,16 +172,66 @@ public class EnemyGround : EntityClass
                     // The navmesh should try to find a path towards the entity being chased
                     if (entToChase != null)
                     {
-                        nav.SetDestination(entToChase.transform.position);
+                        Vector3 posToMoveTo = entToChase.transform.position;
+                        if ((posToMoveTo - transform.position).sqrMagnitude > chaseRadius*chaseRadius || keepDistance)
+                        {
+                            posToMoveTo -= chaseRadius * (posToMoveTo - transform.position).normalized;
+                            nav.SetDestination(posToMoveTo);
+                        }
                     }
                     else
                     {
                         enState = EnemyState.PATROL;
                     }
                     break;
+                case EnemyState.DASHSTART:
+                    int sign = 1;
+                    if (UnityEngine.Random.value >= 0.5f)
+                    {
+                        sign = -1;
+                    }
+
+                    nav.stoppingDistance = dashDistance / 10.0f;
+                    nav.speed = HSpeedCap * dashSpeedMultiplier;
+                    nav.SetDestination(Quaternion.Euler(0.0f, sign * 90.0f, 0.0f) * transform.forward * dashDistance);
+
+
+                    enState = EnemyState.DASH;
+                    break;
+                case EnemyState.DASH:
+                    if (nav.remainingDistance < 1.0f)
+                    {
+                        nav.stoppingDistance = chaseRadius;
+                        nav.speed = HSpeedCap;
+
+                        if (entToChase != null) enState = EnemyState.CHASE;
+                        else enState = EnemyState.PATROL;
+                    }
+                    break;
             }
-            DebugSphere.transform.position = nav.nextPosition + new Vector3(0, 4.0f, 0);
+
+            int i = 0;
+            for (i = 0; i < DebugPrimitives.Count(); i++)
+            {
+                if (i < nav.path.corners.Count())
+                {
+                    DebugPrimitives[i].transform.position = nav.path.corners[i] + new Vector3(0.0f, 4.0f, 0.0f);
+                    DebugPrimitives[i].GetComponent<Renderer>().material.color = new Color(0.0f, 0.2f * i, 0.0f);
+                }
+                else if (i == nav.path.corners.Count())
+                {
+                    DebugPrimitives[i + 1].transform.position = nav.steeringTarget + new Vector3(0.0f, 4.0f, 0.0f);
+                    DebugPrimitives[i + 1].GetComponent<Renderer>().material.color = Color.red;
+                }
+                else
+                {
+                    DebugPrimitives[i].transform.position = new Vector3(0.0f, -10.0f, 0.0f);
+                }
+            }
         }
+
+        DebugText.text = "Remaining distance: " + (nav.steeringTarget - transform.position).magnitude;
+        DebugText.text += "\nPath status: " + nav.pathStatus;
     }
 
     override public void OnGettingHit(GameObject hitBy)
@@ -156,6 +247,15 @@ public class EnemyGround : EntityClass
                     enState = EnemyState.CHASE;
                     entToChase = ent;
                 }
+
+                if (dashReady)
+                {
+                    dashReady = false;
+                    currDashCooldown = dashCooldown;
+
+                    //enState = EnemyState.DASHSTART;
+                }
+
             }
             catch (Exception e)
             {
