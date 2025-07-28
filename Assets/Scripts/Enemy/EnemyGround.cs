@@ -37,11 +37,11 @@ public class EnemyGround : EntityClass
     // Dash
     public float dashCooldown;
     public float dashDistance;
-    public float dashSpeedMultiplier;
+    public float dashSpeedCapMultiplier;
+    public float dashAccelMultiplier;
     float currDashCooldown;
     bool dashReady;
     bool doDash;
-    bool overrideMovementCalc;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -61,7 +61,6 @@ public class EnemyGround : EntityClass
         // Initialize values
         currDashCooldown = 0.0f;
         dashReady = true;
-        overrideMovementCalc = false;
 
         // Debug primitives
         DebugPrimitives = new GameObject[10];
@@ -173,10 +172,14 @@ public class EnemyGround : EntityClass
                     if (entToChase != null)
                     {
                         Vector3 posToMoveTo = entToChase.transform.position;
-                        if ((posToMoveTo - transform.position).sqrMagnitude > chaseRadius*chaseRadius || keepDistance)
+                        if ((posToMoveTo - transform.position).sqrMagnitude > chaseRadius * chaseRadius || keepDistance)
                         {
                             posToMoveTo -= chaseRadius * (posToMoveTo - transform.position).normalized;
                             nav.SetDestination(posToMoveTo);
+                        }
+                        else
+                        {
+                            nav.SetDestination(transform.position);
                         }
                     }
                     else
@@ -191,18 +194,18 @@ public class EnemyGround : EntityClass
                         sign = -1;
                     }
 
-                    nav.stoppingDistance = dashDistance / 10.0f;
-                    nav.speed = HSpeedCap * dashSpeedMultiplier;
+                    HSpeedCapMultiplier = dashSpeedCapMultiplier;
+                    HAccelMultiplier = dashAccelMultiplier;
                     nav.SetDestination(Quaternion.Euler(0.0f, sign * 90.0f, 0.0f) * transform.forward * dashDistance);
 
 
                     enState = EnemyState.DASH;
                     break;
                 case EnemyState.DASH:
-                    if (nav.remainingDistance < 1.0f)
+                    if ((nav.destination - transform.position).sqrMagnitude < howCloseToNavPos*howCloseToNavPos)
                     {
-                        nav.stoppingDistance = chaseRadius;
-                        nav.speed = HSpeedCap;
+                        HSpeedCapMultiplier = 1.0f;
+                        HAccelMultiplier = 1.0f;
 
                         if (entToChase != null) enState = EnemyState.CHASE;
                         else enState = EnemyState.PATROL;
@@ -244,7 +247,7 @@ public class EnemyGround : EntityClass
                 EntityClass ent = hitBy.GetComponent<EntityClass>();
                 if (ent.HasExtraTag("Player"))
                 {
-                    enState = EnemyState.CHASE;
+                    if (enState != EnemyState.DASHSTART && enState != EnemyState.DASH) enState = EnemyState.CHASE;
                     entToChase = ent;
                 }
 
@@ -253,7 +256,7 @@ public class EnemyGround : EntityClass
                     dashReady = false;
                     currDashCooldown = dashCooldown;
 
-                    //enState = EnemyState.DASHSTART;
+                    enState = EnemyState.DASHSTART;
                 }
 
             }

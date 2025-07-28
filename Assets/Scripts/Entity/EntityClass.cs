@@ -16,8 +16,11 @@ public class EntityClass : MonoBehaviour
 
     // Movement Variables
     public float HSpeedCap;                         // Horizontal speed cap
+    protected float HSpeedCapMultiplier;
     public float VSpeedCap;                         // Vertical speed cap
+    protected float VSpeedCapMultiplier;
     public float HAccel;                            // Horizontal acceleration
+    protected float HAccelMultiplier;
     public float grav;                              // Gravity effect
     protected Vector3 knockback;                    // Knockback vector
     protected float knockbackMod;                   // Knockback multiplier
@@ -63,6 +66,9 @@ public class EntityClass : MonoBehaviour
         rotation = Vector2.zero;
         rotationQuat = Quaternion.identity;
         movState = State.AIRBORNE;
+        HSpeedCapMultiplier = 1.0f;
+        VSpeedCapMultiplier = 1.0f;
+        HAccelMultiplier = 1.0f;
 
         if (rigBod != null)
         {
@@ -157,12 +163,17 @@ public class EntityClass : MonoBehaviour
         rotationQuat = rot;
 
         float HSpeed = new Vector2(speed.x, speed.z).magnitude;
-        float timeToStop = HSpeed / HAccel;
+        float timeToStop = HSpeed / (HAccel*HAccelMultiplier);
 
-        if (dirWhole.sqrMagnitude < Math.Pow(HSpeed * timeToStop - (1 / 2) * HAccel * timeToStop * timeToStop,2)
-            || dirWhole.sqrMagnitude < distanceCap*distanceCap)
+        if (dirWhole.sqrMagnitude < Math.Pow(HSpeed * timeToStop - (1 / 2) * HAccel * HAccelMultiplier * timeToStop * timeToStop, 2)
+            || dirWhole.sqrMagnitude < distanceCap * distanceCap)
         {
             moveVect.x = 0.0f; moveVect.z = 0.0f;
+            //GetComponent<Renderer>().material.color = Color.red;
+        }
+        else
+        {
+            //GetComponent<Renderer>().material.color = Color.blue;
         }
 
         // Calc movement but do not apply it, apply it with different setting
@@ -181,15 +192,15 @@ public class EntityClass : MonoBehaviour
         // If inputVal is on, then add speed using acceleration, capping it at the speed cap
         if (Mathf.Abs(inputVal) > 0.2)
         {
-            speedVal += inputVal * (HAccel * Time.fixedDeltaTime);
-            if (Mathf.Abs(speedVal) > HSpeedCap) { speedVal = Mathf.Sign(speedVal) * HSpeedCap; }
+            speedVal += inputVal * (HAccel * HAccelMultiplier * Time.fixedDeltaTime);
+            if (Mathf.Abs(speedVal) > HSpeedCap * HSpeedCapMultiplier) { speedVal = Mathf.Sign(speedVal) * HSpeedCap * HSpeedCapMultiplier; }
         }
         // Otherwise, reduce it until it is below 0.5, at which point set it to 0
         else
         {
             if (Mathf.Abs(speedVal) > 0.5)
             {
-                speedVal -= Mathf.Sign(speedVal) * (HAccel * Time.fixedDeltaTime);
+                speedVal -= Mathf.Sign(speedVal) * (HAccel * HAccelMultiplier * Time.fixedDeltaTime);
             }
             else
             {
