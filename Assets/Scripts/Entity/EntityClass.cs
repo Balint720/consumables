@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using NUnit.Framework.Internal;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -27,6 +29,7 @@ public class EntityClass : MonoBehaviour
     protected Vector3 moveVect;                     // Movement input vector
     public float turnSpeedRatio;                    // Turn speed ratio: how fast the character turns
     protected float turnSpeedMod;                   // Turn speed modifier
+    public float distanceOfGroundCheck;
 
     // Current
     protected Vector3 speed;                        // Speed vector
@@ -37,8 +40,10 @@ public class EntityClass : MonoBehaviour
     protected List<String> extraTags;
 
     // Unity components
-    protected CharacterController charCont;
     protected Rigidbody rigBod;
+    protected Collider coll;
+    protected float heightOfColl;
+    RaycastHit groundHitInfo;
 
     // Character movement state
     protected enum State
@@ -49,12 +54,14 @@ public class EntityClass : MonoBehaviour
 
     protected State movState;
 
+    GameObject SphereDebug;
+
     protected void EntityStart()
     {
         // Instantiate, assign components
         extraTags = new List<String>();
-        charCont = GetComponent<CharacterController>();
         rigBod = GetComponent<Rigidbody>();
+        coll = GetComponent<Collider>();
 
         // Set variables
         HP = maxHP;
@@ -70,10 +77,36 @@ public class EntityClass : MonoBehaviour
         VSpeedCapMultiplier = 1.0f;
         HAccelMultiplier = 1.0f;
 
+        if (coll != null)
+        {
+            try
+            {
+                CapsuleCollider capColl = GetComponent<CapsuleCollider>();
+                BoxCollider boxColl = GetComponent<BoxCollider>();
+                if (capColl != null)
+                {
+                    heightOfColl = capColl.height;
+                }
+                else if (boxColl != null)
+                {
+                    heightOfColl = boxColl.size.y;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.Log(e);
+            }
+        }
+
         if (rigBod != null)
         {
             rigBod.isKinematic = true;
+            rigBod.detectCollisions = true;
         }
+
+        SphereDebug = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        SphereDebug.GetComponent<Collider>().enabled = false;
+        SphereDebug.GetComponent<Renderer>().enabled = false;
     }
 
     /// <summary>
@@ -83,17 +116,18 @@ public class EntityClass : MonoBehaviour
     {
         // Calculate speed
         // Get current forwards and sideways speed
-        float forwardsSpeed = Vector3.Dot(charCont.velocity, transform.forward);
-        float sideSpeed = Vector3.Dot(charCont.velocity, transform.right);                      // We get these from the real speed of the character because sliding off of walls would make us shoot off them with max speed as soon as we are no longer colliding with them
-        float vertSpeed = Vector3.Dot(speed, new Vector3(0, 1, 0));                             // We get this from the "theoretical" speed vector because we want to keep negative speed while on the ground (shitty collision solution for walking down ramps)
+        float forwardsSpeed = Vector3.Dot(rigBod.linearVelocity, transform.forward);
+        float sideSpeed = Vector3.Dot(rigBod.linearVelocity, transform.right);                      // We get these from the real speed of the character because sliding off of walls would make us shoot off them with max speed as soon as we are no longer colliding with them
+        float vertSpeed = Vector3.Dot(rigBod.linearVelocity, new Vector3(0, 1, 0));
 
         // State on previous frame
         State prevFrame = movState;
 
         // Set state based on if ground beneath
-        if (charCont.isGrounded)
+        if (rigBod.SweepTest(transform.up * (-1), out groundHitInfo, distanceOfGroundCheck))
         {
             movState = State.GROUNDED;
+            SphereDebug.transform.position = groundHitInfo.point;
         }
         else
         {
@@ -115,16 +149,21 @@ public class EntityClass : MonoBehaviour
                 }
                 else
                 {
-                    vertSpeed = -10 * grav * Time.fixedDeltaTime;
+                    vertSpeed = 0.0f;
+                    if (groundHitInfo.distance > distanceOfGroundCheck / 2.0f)
+                    {
+                        rigBod.position = new Vector3(rigBod.position.x, groundHitInfo.point.y + ((heightOfColl + distanceOfGroundCheck) / 2.0f), rigBod.position.z);
+                    }
                 }
                 break;
             case State.AIRBORNE:
+                /*
                 // If we were grounded the last frame, then reset vertSpeed if it was negative
                 if (prevFrame == State.GROUNDED && vertSpeed < 0.0f)
                 {
                     vertSpeed = 0.0f;
                 }
-
+                */
                 // Apply gravity
                 vertSpeed -= grav * Time.fixedDeltaTime;
                 break;
@@ -142,6 +181,8 @@ public class EntityClass : MonoBehaviour
         {
             ApplyMoveRot();
         }
+
+        Debug.Log(movState);
     }
 
     /// <summary>
@@ -177,8 +218,7 @@ public class EntityClass : MonoBehaviour
         }
 
         // Calc movement but do not apply it, apply it with different setting
-        CalcMovementGrounded(false);
-        ApplyMoveRot(true);
+        CalcMovementGrounded();
 
     }
 
@@ -213,17 +253,30 @@ public class EntityClass : MonoBehaviour
     /// Applies movement based on speed vector and rotation vector/quaternion
     /// </summary>
     /// <param name="quatSlerpRot">If true, will use rotationQuat variable and Slerp between current rotation, if false, only sets rotation to yaw of rotation vector</param>
-    protected void ApplyMoveRot(bool quatSlerpRot = false)
+    protected void ApplyMoveRot(bool isPlayer = false)
     {
-        // Apply movement and yaw
-        charCont.Move(speed * Time.fixedDeltaTime);
-        if (quatSlerpRot)
+        // Collision check
+        RaycastHit[] hitInfo;
+        hitInfo = rigBod.SweepTestAll(speed, speed.magnitude * Time.fixedDeltaTime);
+        if (hitInfo != null)
         {
-            transform.rotation = Quaternion.Slerp(transform.rotation, rotationQuat, turnSpeedRatio * Time.fixedDeltaTime);
+            for (int i = 0; i < hitInfo.Length; i++)
+            {
+                Vector3 removeVec = hitInfo[i].normal * (-1) * Vector3.Dot(speed, hitInfo[i].normal * (-1));
+                speed -= removeVec;
+            }
+        }
+
+        rigBod.MovePosition(rigBod.position + speed * Time.fixedDeltaTime);
+
+        if (isPlayer)
+        {
+            rigBod.MoveRotation(Quaternion.Euler(0, rotation.y, 0));
         }
         else
         {
-            transform.rotation = Quaternion.Euler(0, rotation.y, 0);
+            //transform.rotation = Quaternion.Slerp(transform.rotation, rotationQuat, turnSpeedRatio * Time.fixedDeltaTime);
+            rigBod.MoveRotation(rotationQuat);
         }
     }
 
@@ -248,8 +301,7 @@ public class EntityClass : MonoBehaviour
     /// </summary>
     protected void ZeroHP()
     {
-        charCont.enabled = false;
-        rigBod.isKinematic = true;
+        rigBod.isKinematic = false;
         rigBod.AddForce(knockback * knockbackMod, ForceMode.Force);
     }
 

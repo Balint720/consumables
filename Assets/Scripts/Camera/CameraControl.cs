@@ -4,7 +4,7 @@ public class CameraControl : MonoBehaviour
 {
     public GameObject Player;
     private PlayerControl script;
-    public float offset;
+    public Vector3 offset;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -18,6 +18,6 @@ public class CameraControl : MonoBehaviour
     {
         // The camera rotates based on player script's orientation variable, and the camera is at the position of the player
         transform.localRotation = Quaternion.Euler(script.GetRotation().x, script.GetRotation().y, 0);
-        transform.position = Player.transform.position;
+        transform.position = Player.transform.position + offset;
     }
 }

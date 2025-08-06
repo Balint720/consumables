@@ -201,7 +201,8 @@ public class PlayerControl : EntityClass
 
     void FixedUpdate()
     {
-        CalcMovementGrounded();
+        CalcMovementGrounded(false);
+        ApplyMoveRot(true);
         DoAttack();
     }
 
@@ -248,7 +249,7 @@ public class PlayerControl : EntityClass
 
         if (canShoot)
         {
-            weapon[equippedItem].Fire(cam, ref addedRotation, charCont.velocity * 2 * Time.fixedDeltaTime);
+            weapon[equippedItem].Fire(cam, ref addedRotation, rigBod.linearVelocity * 2 * Time.fixedDeltaTime);
         }
 
         attackPressed = false;

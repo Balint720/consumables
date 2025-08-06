@@ -69,7 +69,6 @@ public class EnemyGround : EntityClass
             DebugPrimitives[i] = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             DebugPrimitives[i].GetComponent<SphereCollider>().enabled = false;
         }
-        
     }
 
     // Update is called once per frame
@@ -104,24 +103,24 @@ public class EnemyGround : EntityClass
                     if (entToChase != null)
                     {
                         // Look towards the entity that is being chased if it can see it
-                        dir = (entToChase.transform.position - transform.position).normalized;
+                        dir = (entToChase.transform.position - rigBod.position).normalized;
 
                         // Cast a ray towards the entity, which if not blocked by any colliders means we look at them, otherwise we look towards the direction we are going
                         RaycastHit rayHit;
-                        Physics.Raycast(transform.position, dir, out rayHit);
+                        Physics.Raycast(rigBod.position, dir, out rayHit);
                         if (rayHit.collider.gameObject.name == entToChase.gameObject.name)
                         {
                             if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }
                         }
                         else
                         {
-                            dir = (nav.steeringTarget - transform.position).normalized;
+                            dir = (nav.steeringTarget - rigBod.position).normalized;
                             if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }               // Rotation to the position being moved to
                         }
                     }
                     break;
                 default:
-                    dir = (nav.steeringTarget - transform.position).normalized;
+                    dir = (nav.steeringTarget - rigBod.position).normalized;
                     if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }               // Rotation to the position being moved to
                     break;
             }
@@ -136,7 +135,7 @@ public class EnemyGround : EntityClass
                 NavMeshLink link = nav.currentOffMeshLinkData.owner.GetComponent<NavMeshLink>();
 
                 // Check if the distance between the link's start- and endpoint is smaller than the distance of our current position and the point we want to go to
-                if ((link.endPoint - link.startPoint).sqrMagnitude < (nav.destination - transform.position).sqrMagnitude)
+                if ((link.endPoint - link.startPoint).sqrMagnitude < (nav.destination - rigBod.position).sqrMagnitude)
                 {
                     // We activate the link (?) (dont know if this does anything)
                     link.activated = true;
@@ -160,7 +159,7 @@ public class EnemyGround : EntityClass
 
             // Calculate the movement based on navmesh next position using entity movement
             CalcMovementGrounded(nav.steeringTarget, rot, doJump, howCloseToNavPos);
-            nav.nextPosition = transform.position;
+            nav.nextPosition = rigBod.position;
 
             // Based on enemy state:
             switch (enState)
@@ -172,14 +171,14 @@ public class EnemyGround : EntityClass
                     if (entToChase != null)
                     {
                         Vector3 posToMoveTo = entToChase.transform.position;
-                        if ((posToMoveTo - transform.position).sqrMagnitude > chaseRadius * chaseRadius || keepDistance)
+                        if ((posToMoveTo - rigBod.position).sqrMagnitude > chaseRadius * chaseRadius || keepDistance)
                         {
-                            posToMoveTo -= chaseRadius * (posToMoveTo - transform.position).normalized;
+                            posToMoveTo -= chaseRadius * (posToMoveTo - rigBod.position).normalized;
                             nav.SetDestination(posToMoveTo);
                         }
                         else
                         {
-                            nav.SetDestination(transform.position);
+                            nav.SetDestination(rigBod.position);
                         }
                     }
                     else
@@ -232,9 +231,6 @@ public class EnemyGround : EntityClass
                 }
             }
         }
-
-        DebugText.text = "Remaining distance: " + (nav.steeringTarget - transform.position).magnitude;
-        DebugText.text += "\nPath status: " + nav.pathStatus;
     }
 
     override public void OnGettingHit(GameObject hitBy)
@@ -266,5 +262,7 @@ public class EnemyGround : EntityClass
                 Debug.Log("Couldn't get EntityClass component from GameObject tagged as \"Entity\"");
             }
         }
+
+        Debug.Log("Got hit by " + hitBy);
     }
 }
