@@ -124,7 +124,7 @@ public class EntityClass : MonoBehaviour
         State prevFrame = movState;
 
         // Set state based on if ground beneath
-        if (rigBod.SweepTest(transform.up * (-1), out groundHitInfo, distanceOfGroundCheck))
+        if (rigBod.SweepTest(transform.up * (-1), out groundHitInfo, distanceOfGroundCheck, QueryTriggerInteraction.Ignore))
         {
             movState = State.GROUNDED;
             SphereDebug.transform.position = groundHitInfo.point;
@@ -182,7 +182,6 @@ public class EntityClass : MonoBehaviour
             ApplyMoveRot();
         }
 
-        Debug.Log(movState);
     }
 
     /// <summary>
@@ -204,7 +203,7 @@ public class EntityClass : MonoBehaviour
         rotationQuat = rot;
 
         float HSpeed = new Vector2(speed.x, speed.z).magnitude;
-        float timeToStop = HSpeed / (HAccel*HAccelMultiplier);
+        float timeToStop = HSpeed / (HAccel * HAccelMultiplier);
 
         if (dirWhole.sqrMagnitude < Math.Pow(HSpeed * timeToStop - (1 / 2) * HAccel * HAccelMultiplier * timeToStop * timeToStop, 2)
             || dirWhole.sqrMagnitude < distanceCap * distanceCap)
@@ -257,7 +256,7 @@ public class EntityClass : MonoBehaviour
     {
         // Collision check
         RaycastHit[] hitInfo;
-        hitInfo = rigBod.SweepTestAll(speed, speed.magnitude * Time.fixedDeltaTime);
+        hitInfo = rigBod.SweepTestAll(speed, speed.magnitude * Time.fixedDeltaTime, QueryTriggerInteraction.Ignore);
         if (hitInfo != null)
         {
             for (int i = 0; i < hitInfo.Length; i++)
@@ -343,6 +342,11 @@ public class EntityClass : MonoBehaviour
         {
             return false;
         }
+    }
+
+    public Vector3 GetSpeed()
+    {
+        return speed;
     }
 
 }

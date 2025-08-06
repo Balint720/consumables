@@ -195,7 +195,8 @@ public class EnemyGround : EntityClass
 
                     HSpeedCapMultiplier = dashSpeedCapMultiplier;
                     HAccelMultiplier = dashAccelMultiplier;
-                    nav.SetDestination(Quaternion.Euler(0.0f, sign * 90.0f, 0.0f) * transform.forward * dashDistance);
+
+                    nav.SetDestination(rigBod.position + Quaternion.Euler(0.0f, 90.0f * sign, 0.0f) * transform.forward * dashDistance);
 
 
                     enState = EnemyState.DASH;
