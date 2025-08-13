@@ -17,45 +17,56 @@ public class WeaponClass : MonoBehaviour
     public enum FiringMode
     {
         SEMI,
-        AUTO
+        AUTO,
+        BOW,
+        CHARGE
     }
 
     public enum WeaponType
     {
         HITSCAN_SINGLE,
         HITSCAN_SPREAD,
-        PROJECTILE
+        PROJECTILE,
+        PROJECTILE_MULTIPLE
     }
 
-    public enum WeaponState
+    public enum WeaponModifier
     {
         BASE,
         ELECTRIC
     }
 
+    public enum TriggerState
+    {
+        RELEASED,
+        HELD
+    }
+
     [Serializable]
     public struct WeaponStats
     {
-        public int dmg;                                // Damage will be calculated for every bullet
-        public uint pelCount;                          // Pellet count for shotguns
-        public List<Vector2> recoilPattern;            // List of recoilVal values for recoil pattern (can also be where bullets from a shotgun go)
-        public float recoilRecoveryTime;               // How long until recoil resets in seconds
-        public float bloom;                            // Random spread of weapon, deviation from where the bullet should go, value is maximum possible deviation
-        public int rpm;                                // Fire rate: rounds per minute
-        public float knockbackStrength;                // Strength of knockback applied by weapon
-        public float range;                            // Range of weapon, for hitscan this is the max distance of the raycast, for projectiles the projectile gets destroyed after traveling this many units
-        public float projSpeed;                        // Speed of projectile
-        public WeaponType weaponType;                  // Hitscan, projectile etc
-        public FiringMode fireMode;                    // Basically, does holding down the mouse keep shooting or not
-        public ProjectileClass projectile;             // Projectile that is sent by weapon
+        public int dmg;                                 // Damage will be calculated for every bullet
+        public uint pelCount;                           // Pellet count for shotguns
+        public List<Vector2> recoilPattern;             // List of recoilVal values for recoil pattern (can also be where bullets from a shotgun go)
+        public float recoilRecoveryTime;                // How long until recoil resets in seconds
+        public float bloom;                             // Random spread of weapon, deviation from where the bullet should go, value is maximum possible deviation
+        public int rpm;                                 // Fire rate: rounds per minute
+        public float knockbackStrength;                 // Strength of knockback applied by weapon
+        public float range;                             // Range of weapon, for hitscan this is the max distance of the raycast, for projectiles the projectile gets destroyed after traveling this many units
+        public float projSpeed;                         // Speed of projectile
+        public float chargeMaxDur;                      // How long to fully charge weapon (in seconds)
+        public WeaponType weaponType;                   // Hitscan, projectile etc
+        public FiringMode fireMode;
+        public ProjectileClass projectile;              // Projectile that is sent by weapon
     }
 
 
     int ownerID;                                // Get ID of weapon's owner
 
     // State
-    WeaponState w_state;
-    WeaponState prev_w_state;
+    WeaponModifier w_mod;
+    WeaponModifier prev_w_mod;
+    TriggerState triggerState;
     bool isActive;
     bool isPartPlaying;
 
@@ -64,6 +75,7 @@ public class WeaponClass : MonoBehaviour
     public List<WeaponStats> modifiedStats;
     WeaponStats currStats;
     float currModDur;
+    float currChargeDur;
     float dmgMod;                               // Damage will be multiplied by this value
     int recoilInd;                              // Index of where we are in the recoil pattern
     float recoilValMod;                         // Recoil will be multiplied by this value
@@ -71,6 +83,7 @@ public class WeaponClass : MonoBehaviour
     float rpmMod;                               // RPM will be multiplied by this value
     float knockbackMod;                         // KnockbackStrength will be multiplied by this value
     float projSpeedMod;                         // Speed of projectile will be multiplied by this value
+    float chargeMaxDurMod;                      // Duration for maximum charge will be multiplied by this value
     public Vector3 offset;                      // Visual fired bullets are offset from here (Maybe projectiles will just straight up be offset)
 
     // Time
@@ -96,11 +109,14 @@ public class WeaponClass : MonoBehaviour
         rpmMod = 1.0f;
         knockbackMod = 1.0f;
         projSpeedMod = 1.0f;
+        chargeMaxDurMod = 1.0f;
         currModDur = 0.0f;
+        currChargeDur = 0.0f;
 
         // Set stats to base stats
         currStats = baseStats;
-        w_state = WeaponState.BASE;
+        w_mod = WeaponModifier.BASE;
+        triggerState = TriggerState.RELEASED;
 
         // On spawn be unequipped
         isActive = false;
@@ -132,14 +148,17 @@ public class WeaponClass : MonoBehaviour
     {
         ApplyModifier();
 
-        if (currModDur > 0.0f && w_state != WeaponState.BASE)
+        // Timers
+        if (currModDur > 0.0f && w_mod != WeaponModifier.BASE)
         {
             currModDur -= Time.fixedDeltaTime;
         }
         else
         {
-            w_state = WeaponState.BASE;
+            w_mod = WeaponModifier.BASE;
         }
+
+        currChargeDur += Time.fixedDeltaTime;
     }
 
     /// <summary>
@@ -164,14 +183,14 @@ public class WeaponClass : MonoBehaviour
     /// <param name="origin"></param>
     /// <param name="direction"></param>
     /// <param name="rotation"></param>
-    void ShootProjectile(Vector3 origin, Vector3 direction, Quaternion rotation)
+    void ShootProjectile(Vector3 origin, Vector3 direction, Quaternion rotation, float chargeDurSpeedMod = 1.0f)
     {
         // Set the direction and offset IF there is a hitscanProjectile
         ProjectileClass p = Instantiate(currStats.projectile, origin, rotation);
         p.SetDirection(direction);
 
         // Set projectile values and owner
-        p.SetValuesOfProj((int)(currStats.dmg * dmgMod), currStats.projSpeed * projSpeedMod, currStats.knockbackStrength * knockbackMod);
+        p.SetValuesOfProj((int)(currStats.dmg * dmgMod * chargeDurSpeedMod), currStats.projSpeed * projSpeedMod * chargeDurSpeedMod, currStats.knockbackStrength * knockbackMod * chargeDurSpeedMod);
         p.SetOwner(ownerID);
     }
 
@@ -189,12 +208,16 @@ public class WeaponClass : MonoBehaviour
         // Get time in seconds since the last time the weapon fired
         float sinceLastFire = Time.time - lastFireTime;
 
+        Vector3 offsetOrigin;
+        Vector3 offsetDir;
+
         // Only shoot if rate of fire allows it
         if (sinceLastFire > 60.0f / (currStats.rpm * rpmMod))
         {
             lastFireTime = Time.time;
             RaycastHit hitInfo;
             bool hitSomething = false;
+
             // Different methods for hitscan weapons, projectile weapons
             switch (currStats.weaponType)
             {
@@ -221,13 +244,12 @@ public class WeaponClass : MonoBehaviour
                         ApplyDamageToEnt(hitInfo, direction);
                     }
 
-
                     if (currStats.projectile != null)
                     {
                         // Get point and direction from where the visual projectile should fire (gun barrel)
                         // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
-                        Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
-                        Vector3 offsetDir = Vector3.Normalize(origin + 50 * direction - offsetOrigin);
+                        offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
+                        offsetDir = Vector3.Normalize(origin + 50 * direction - offsetOrigin);
                         if (hitSomething)
                         {
                             offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
@@ -268,8 +290,8 @@ public class WeaponClass : MonoBehaviour
                         {
                             // Get point and direction from where the visual projectile should fire (gun barrel)
                             // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
-                            Vector3 offsetOrigin = origin + pelRot * new Vector3(offset.x, offset.y);
-                            Vector3 offsetDir = Vector3.Normalize(origin + 50 * pelDir - offsetOrigin);
+                            offsetOrigin = origin + pelRot * new Vector3(offset.x, offset.y);
+                            offsetDir = Vector3.Normalize(origin + 50 * pelDir - offsetOrigin);
                             if (hitInfo.collider != null)
                             {
                                 offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
@@ -280,6 +302,11 @@ public class WeaponClass : MonoBehaviour
                             ShootProjectile(offsetOrigin, offsetDir, rotation);
                         }
                     }
+                    break;
+
+                case WeaponType.PROJECTILE:
+                    offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
+                    ShootProjectile(offsetOrigin, direction, rotation);
                     break;
             }
         }
@@ -340,9 +367,9 @@ public class WeaponClass : MonoBehaviour
     /// <param name="pu">Type of consumable</param>
     public void ApplyModifier()
     {
-        switch (w_state)
+        switch (w_mod)
         {
-            case WeaponState.BASE:
+            case WeaponModifier.BASE:
                 currStats = baseStats;
                 if (circlingVFX != null)
                 {
@@ -353,7 +380,7 @@ public class WeaponClass : MonoBehaviour
                     }
                 }
                 break;
-            case WeaponState.ELECTRIC:
+            case WeaponModifier.ELECTRIC:
                 if (modifiedStats.Count > (int)PickUpClass.PickUpType.ELECTRIC)
                 {
                     currStats = modifiedStats[(int)PickUpClass.PickUpType.ELECTRIC];
@@ -395,18 +422,49 @@ public class WeaponClass : MonoBehaviour
         return currStats.fireMode;
     }
 
-    public void SetState(WeaponState newState, float duration)
+    public void SetState(WeaponModifier newState, float duration)
     {
-        w_state = newState;
+        w_mod = newState;
         switch (newState)
         {
-            case WeaponState.ELECTRIC:
+            case WeaponModifier.ELECTRIC:
                 break;
             default:
                 break;
         }
         currModDur += duration;
 
+    }
+
+    public void SetTriggerState(TriggerState st, CameraControl cam, ref Vector2 addRot, Vector3 speed = new Vector3())
+    {
+        switch (GetFiringMode())
+        {
+            case FiringMode.SEMI:
+                if (triggerState == TriggerState.RELEASED && st == TriggerState.HELD)
+                {
+                    Fire(cam, ref addRot, speed);
+                }
+                break;
+            case FiringMode.AUTO:
+                if (st == TriggerState.HELD)
+                {
+                    Fire(cam, ref addRot, speed);
+                }
+                break;
+            case FiringMode.BOW:
+                if (triggerState == TriggerState.RELEASED && st == TriggerState.HELD)
+                {
+                    currChargeDur = 0.0f;
+                }
+                else if (triggerState == TriggerState.HELD && st == TriggerState.RELEASED)
+                {
+                    Fire(cam, ref addRot, speed);
+                }
+                break;
+        }
+
+        triggerState = st;
     }
 
     public bool Equip()

@@ -167,21 +167,6 @@ public class PlayerControl : EntityClass
         moveVect = new Vector3(moveInput.ReadValue<Vector2>().x, jumpInput.IsPressed() ? 1.0f : 0.0f, moveInput.ReadValue<Vector2>().y);
         lookVect = lookInput.ReadValue<Vector2>();
 
-        // Attack input checked, check if held or pressed
-        if (attackInput.WasPressedThisFrame())
-        {
-            attackPressed = true;
-            attackBuf = 0.0f;
-        }
-        if (attackPressed)
-        {
-            attackBuf += Time.deltaTime;
-            if (attackBuf > inputBuffer)
-            {
-                attackPressed = false;
-            }
-        }
-
         // Looking
         rotation += new Vector2(-lookVect.y, lookVect.x) * sens;                            // Calculate rotation from input as degrees in a 2D vector
         if (Math.Abs(rotation.x) > lookVerticalDegLimit)
@@ -232,27 +217,14 @@ public class PlayerControl : EntityClass
 
     void DoAttack()
     {
-        bool canShoot;
-        switch (weapon[equippedItem].GetFiringMode())
+        if (attackInput.IsPressed())
         {
-            case WeaponClass.FiringMode.SEMI:
-                canShoot = attackPressed;
-                break;
-            case WeaponClass.FiringMode.AUTO:
-                canShoot = attackInput.IsPressed();
-                break;
-            default:
-                canShoot = true;
-                break;
+            weapon[equippedItem].SetTriggerState(WeaponClass.TriggerState.HELD, cam, ref addedRotation, rigBod.linearVelocity * 2 * Time.fixedDeltaTime);
         }
-
-
-        if (canShoot)
+        else
         {
-            weapon[equippedItem].Fire(cam, ref addedRotation, rigBod.linearVelocity * 2 * Time.fixedDeltaTime);
+            weapon[equippedItem].SetTriggerState(WeaponClass.TriggerState.RELEASED, cam, ref addedRotation, rigBod.linearVelocity * 2 * Time.fixedDeltaTime);
         }
-
-        attackPressed = false;
     }
 
     IEnumerator AddRotGradual(Vector2 rotToAdd, int increments)
@@ -299,7 +271,7 @@ public class PlayerControl : EntityClass
                 switch (consumable[index].GetPUType())
                 {
                     case PickUpClass.PickUpType.ELECTRIC:
-                        weapon[equippedItem].SetState(WeaponClass.WeaponState.ELECTRIC, Consumable.consumableDuration);
+                        weapon[equippedItem].SetState(WeaponClass.WeaponModifier.ELECTRIC, Consumable.consumableDuration);
                         break;
                 }
 

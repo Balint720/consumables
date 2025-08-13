@@ -48,7 +48,7 @@ public class ProjectileClass : MonoBehaviour
     void FixedUpdate()
     {
         // Move rigidbody
-        body.Move(body.position + dir * speed * Time.deltaTime, body.rotation);
+        body.MovePosition(body.position + dir * speed * Time.deltaTime);
 
         // If projectile has travelled the defined range or has lived for over 30 seconds destroy projectile
         if ((body.position - spawnPos).magnitude > range || Time.time - spawnTime > 30.0f)
@@ -69,8 +69,21 @@ public class ProjectileClass : MonoBehaviour
         Destroy(gameObject);
     }
 
+    void OnTriggerEnter(Collider other)
+    {
+        // If not cosmetic apply damage to hit entity
+        if (!cosmetic)
+        {
+            ApplyDamageToEnt(other);
+        }
+
+        // Destroy projectile (should check what we hit first though...)
+        Destroy(gameObject);
+    }
+
     bool ApplyDamageToEnt(Collider col)
     {
+        Debug.Log("Arrow hit " + col.name);
         if (col.tag == "Entity")
         {
             try
