@@ -4,6 +4,7 @@ using NUnit.Framework.Internal;
 using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.UI;
 
 // Entity
@@ -19,11 +20,15 @@ public class EntityClass : MonoBehaviour
     // Movement Variables
     public float HSpeedCap;                         // Horizontal speed cap
     protected float HSpeedCapMultiplier;
-    public float VSpeedCap;                         // Vertical speed cap
+    public float VSpeedCap;                         // Vertical speed cap (Jump height if grounded)
     protected float VSpeedCapMultiplier;
+    public float fallSpeedCap;
     public float HAccel;                            // Horizontal acceleration
     protected float HAccelMultiplier;
+    public float VAccel;
+    protected float VAccelMultiplier;
     public float grav;                              // Gravity effect
+    float gravSlopeMultiplier;
     protected Vector3 knockback;                    // Knockback vector
     protected float knockbackMod;                   // Knockback multiplier
     protected Vector3 moveVect;                     // Movement input vector
@@ -43,7 +48,10 @@ public class EntityClass : MonoBehaviour
     protected Rigidbody rigBod;
     protected Collider coll;
     protected float heightOfColl;
+    protected float radiusOfColl;
     RaycastHit groundHitInfo;
+    Vector3 normalOfGround;
+    GameObject groundObj;
 
     // Character movement state
     protected enum State
@@ -76,6 +84,9 @@ public class EntityClass : MonoBehaviour
         HSpeedCapMultiplier = 1.0f;
         VSpeedCapMultiplier = 1.0f;
         HAccelMultiplier = 1.0f;
+        VAccelMultiplier = 1.0f;
+        gravSlopeMultiplier = 1.0f;
+        groundObj = null;
 
         if (coll != null)
         {
@@ -86,10 +97,12 @@ public class EntityClass : MonoBehaviour
                 if (capColl != null)
                 {
                     heightOfColl = capColl.height;
+                    radiusOfColl = capColl.radius;
                 }
                 else if (boxColl != null)
                 {
                     heightOfColl = boxColl.size.y;
+                    radiusOfColl = (boxColl.size.x >= boxColl.size.z) ? boxColl.size.x / 2 : boxColl.size.z / 2;
                 }
             }
             catch (Exception e)
@@ -100,7 +113,7 @@ public class EntityClass : MonoBehaviour
 
         if (rigBod != null)
         {
-            rigBod.isKinematic = true;
+            rigBod.isKinematic = false;
             rigBod.detectCollisions = true;
         }
 
@@ -124,7 +137,7 @@ public class EntityClass : MonoBehaviour
         State prevFrame = movState;
 
         // Set state based on if ground beneath
-        if (rigBod.SweepTest(transform.up * (-1), out groundHitInfo, distanceOfGroundCheck, QueryTriggerInteraction.Ignore))
+        if (Physics.Raycast(transform.position - new Vector3(0, heightOfColl / 2, 0), transform.up * (-1), out groundHitInfo, distanceOfGroundCheck))
         {
             movState = State.GROUNDED;
             SphereDebug.transform.position = groundHitInfo.point;
@@ -221,6 +234,73 @@ public class EntityClass : MonoBehaviour
 
     }
 
+    protected private void CalcMovementAccelerationGrounded()
+    {
+        Vector3 forward = transform.forward;
+        Vector3 right = transform.right;
+
+        Debug.DrawRay(transform.position, transform.forward);
+        // Check if ground beneath
+        if (groundObj != null)
+        {
+            Debug.Log("Current ground is " + groundObj.name);
+            movState = State.GROUNDED;
+            Debug.Log("Angle: " + Mathf.Rad2Deg * Mathf.Acos(Vector3.Dot(transform.forward, normalOfGround)));
+            forward = Quaternion.AngleAxis(90.0f - Mathf.Rad2Deg * Mathf.Acos(Vector3.Dot(transform.forward, normalOfGround)), transform.right) * transform.forward;
+            Debug.DrawRay(transform.position, forward);
+            right = Vector3.Cross(normalOfGround, forward);
+        }
+        else
+        {
+            movState = State.AIRBORNE;
+        }
+
+        // Horizontal Movement
+        Vector3 a = Vector3.zero;
+        Vector3 inputDir = moveVect.z * forward + moveVect.x * right;
+
+        float forwardsSpeed = Vector3.Dot(rigBod.linearVelocity, forward);
+        float sideSpeed = Vector3.Dot(rigBod.linearVelocity, right);
+
+        Vector3 horSpeed = forwardsSpeed * forward + sideSpeed * right;
+
+        Vector3 velChange = inputDir * HSpeedCap * HSpeedCapMultiplier - horSpeed;
+
+        if (velChange.sqrMagnitude > Mathf.Pow(HAccel * HAccelMultiplier, 2))
+        {
+            a = velChange.normalized * HAccel * HAccelMultiplier;
+        }
+        else
+        {
+            a = velChange;
+        }
+
+
+        Vector3 currGravVec = new Vector3(0.0f, -grav, 0.0f);
+
+        switch (movState)
+        {
+            case State.GROUNDED:
+
+                if (moveVect.y > 0.2)
+                {
+                    rigBod.linearVelocity = new Vector3(rigBod.linearVelocity.x, VSpeedCap * VSpeedCapMultiplier, rigBod.linearVelocity.z);
+                }
+
+                currGravVec = normalOfGround * (-1) * grav;
+                break;
+            case State.AIRBORNE:
+                break;
+        }
+
+        // Apply movement
+        rigBod.AddForce(a, ForceMode.VelocityChange);
+        rigBod.AddForce(currGravVec, ForceMode.Acceleration);
+
+        rigBod.MoveRotation(Quaternion.Euler(0, rotation.y, 0));
+
+    }
+
     /// <summary>
     /// Calculate value to add to speed based on input value
     /// </summary>
@@ -254,6 +334,7 @@ public class EntityClass : MonoBehaviour
     /// <param name="quatSlerpRot">If true, will use rotationQuat variable and Slerp between current rotation, if false, only sets rotation to yaw of rotation vector</param>
     protected void ApplyMoveRot(bool isPlayer = false)
     {
+        /*
         // Collision check
         RaycastHit[] hitInfo;
         hitInfo = rigBod.SweepTestAll(speed, speed.magnitude * Time.fixedDeltaTime, QueryTriggerInteraction.Ignore);
@@ -265,8 +346,9 @@ public class EntityClass : MonoBehaviour
                 speed -= removeVec;
             }
         }
+        */
 
-        rigBod.MovePosition(rigBod.position + speed * Time.fixedDeltaTime);
+        rigBod.linearVelocity = speed;
 
         if (isPlayer)
         {
@@ -300,7 +382,6 @@ public class EntityClass : MonoBehaviour
     /// </summary>
     protected void ZeroHP()
     {
-        rigBod.isKinematic = false;
         rigBod.AddForce(knockback * knockbackMod, ForceMode.Force);
     }
 
@@ -349,4 +430,28 @@ public class EntityClass : MonoBehaviour
         return speed;
     }
 
+    void OnCollisionEnter(Collision cInfo)
+    {
+        if (cInfo.collider.CompareTag("Environment"))
+        {
+            Vector3 n = cInfo.GetContact(0).normal;
+            float angle = Mathf.Acos(Vector3.Dot(new Vector3(n.x, 0.0f, n.z), n)) * Mathf.Rad2Deg;
+            if (angle > 10.0f)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
+            {
+                groundObj = cInfo.gameObject;
+                normalOfGround = n;
+            }
+        }
+    }
+
+    void OnCollisionExit(Collision cInfo)
+    {
+        if (groundObj != null)
+        {
+            if (cInfo.gameObject == groundObj)
+            {
+                groundObj = null;
+            }
+        }
+    }
 }

@@ -186,8 +186,7 @@ public class PlayerControl : EntityClass
 
     void FixedUpdate()
     {
-        CalcMovementGrounded(false);
-        ApplyMoveRot(true);
+        CalcMovementAccelerationGrounded();
         DoAttack();
     }
 

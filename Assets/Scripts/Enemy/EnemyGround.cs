@@ -131,29 +131,22 @@ public class EnemyGround : EntityClass
             // Are we standing on a mesh link, if so, handle it
             if (nav.isOnOffMeshLink)
             {
-                // Get current link that we are on
-                NavMeshLink link = nav.currentOffMeshLinkData.owner.GetComponent<NavMeshLink>();
 
                 // Check if the distance between the link's start- and endpoint is smaller than the distance of our current position and the point we want to go to
-                if ((link.endPoint - link.startPoint).sqrMagnitude < (nav.destination - rigBod.position).sqrMagnitude)
+                if ((nav.currentOffMeshLinkData.endPos - nav.currentOffMeshLinkData.startPos).sqrMagnitude < (nav.destination - rigBod.position).sqrMagnitude)
                 {
-                    // We activate the link (?) (dont know if this does anything)
-                    link.activated = true;
-
                     // Based on link area type, we handle the path
-                    switch (link.area)
+                    switch (nav.currentOffMeshLinkData.linkType)
                     {
                         // 2: Jump area
-                        case 2:
+                        case OffMeshLinkType.LinkTypeJumpAcross:
                             doJump = true;
+                            break;
+                        case OffMeshLinkType.LinkTypeDropDown:
                             break;
                         default:
                             break;
                     }
-                }
-                else
-                {
-                    link.activated = false;
                 }
             }
 
