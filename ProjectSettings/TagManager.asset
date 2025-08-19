@@ -14,12 +14,12 @@ TagManager:
   - 
   - Water
   - UI
-  - Entity
+  - EnvironmentBox
+  - Model
+  - Hitbox
   - Obstacle
   - Projectile
-  - PickUp
-  - 
-  - 
+  - Trigger
   - 
   - 
   - 

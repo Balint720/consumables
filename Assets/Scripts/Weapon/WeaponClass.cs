@@ -46,6 +46,7 @@ public class WeaponClass : MonoBehaviour
     public struct WeaponStats
     {
         public int dmg;                                 // Damage will be calculated for every bullet
+        public float criticalDmgMult;                   // Multiplier for damage if we hit critical hitbox
         public uint pelCount;                           // Pellet count for shotguns
         public List<Vector2> recoilPattern;             // List of recoilVal values for recoil pattern (can also be where bullets from a shotgun go)
         public float recoilRecoveryTime;                // How long until recoil resets in seconds
@@ -62,6 +63,7 @@ public class WeaponClass : MonoBehaviour
 
 
     int ownerID;                                // Get ID of weapon's owner
+    public LayerMask layerMaskOfHitscan;
 
     // State
     WeaponModifier w_mod;
@@ -100,6 +102,11 @@ public class WeaponClass : MonoBehaviour
 
     void Start()
     {
+        if (layerMaskOfHitscan == LayerMask.GetMask())
+        {
+            layerMaskOfHitscan = LayerMask.GetMask("Hitbox", "Obstacle");
+        }
+
         // Set intial values for multipliers
         lastFireTime = 0.0f;
         dmgMod = 1.0f;
@@ -168,11 +175,11 @@ public class WeaponClass : MonoBehaviour
     /// <param name="direction"></param>
     /// <param name="rotation"></param>
     /// <returns></returns>
-    RaycastHit ShootHitScan(Vector3 origin, Vector3 direction, Quaternion rotation)
+    RaycastHit ShootHitScan(Vector3 origin, Vector3 direction)
     {
         // Shoot ray into direction from origin with a maximum range
         RaycastHit hitInfo;
-        Physics.Raycast(origin, direction, out hitInfo, currStats.range);
+        Physics.Raycast(origin, direction, out hitInfo, currStats.range, layerMaskOfHitscan);
 
         return hitInfo;
     }
@@ -190,7 +197,7 @@ public class WeaponClass : MonoBehaviour
         p.SetDirection(direction);
 
         // Set projectile values and owner
-        p.SetValuesOfProj((int)(currStats.dmg * dmgMod * chargeDurSpeedMod), currStats.projSpeed * projSpeedMod * chargeDurSpeedMod, currStats.knockbackStrength * knockbackMod * chargeDurSpeedMod);
+        p.SetValuesOfProj(Mathf.RoundToInt(currStats.dmg * dmgMod * chargeDurSpeedMod), currStats.criticalDmgMult, currStats.projSpeed * projSpeedMod * chargeDurSpeedMod, currStats.knockbackStrength * knockbackMod * chargeDurSpeedMod);
         p.SetOwner(ownerID);
     }
 
@@ -208,15 +215,11 @@ public class WeaponClass : MonoBehaviour
         // Get time in seconds since the last time the weapon fired
         float sinceLastFire = Time.time - lastFireTime;
 
-        Vector3 offsetOrigin;
-        Vector3 offsetDir;
-
         // Only shoot if rate of fire allows it
         if (sinceLastFire > 60.0f / (currStats.rpm * rpmMod))
         {
             lastFireTime = Time.time;
             RaycastHit hitInfo;
-            bool hitSomething = false;
 
             // Different methods for hitscan weapons, projectile weapons
             switch (currStats.weaponType)
@@ -235,30 +238,9 @@ public class WeaponClass : MonoBehaviour
                         }
                     }
 
-                    hitInfo = ShootHitScan(origin, direction, rotation);
-                    hitSomething = hitInfo.collider != null;
-
-                    // If we hit an entity, make it reduce its hp by the weapon's dmg
-                    if (hitSomething)
-                    {
-                        ApplyDamageToEnt(hitInfo, direction);
-                    }
-
-                    if (currStats.projectile != null)
-                    {
-                        // Get point and direction from where the visual projectile should fire (gun barrel)
-                        // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
-                        offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
-                        offsetDir = Vector3.Normalize(origin + 50 * direction - offsetOrigin);
-                        if (hitSomething)
-                        {
-                            offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
-                        }
-                        // Test: Adding the speed of the shooter for better cosmetic projectile
-                        offsetOrigin += speed;
-                        // Shoot the projectile with the calculated direction and point with offset
-                        ShootProjectile(offsetOrigin, offsetDir, rotation);
-                    }
+                    hitInfo = ShootHitScan(origin, direction);
+                    CheckIfHit(hitInfo, direction);
+                    ShootCosmeticProj(origin, rotation, direction, hitInfo, speed);
 
                     if (currStats.recoilPattern.Count != 0)
                     {
@@ -276,38 +258,60 @@ public class WeaponClass : MonoBehaviour
                         Quaternion pelRot = CalcRecoiledRot(rotation, i);
 
                         // Shoot pellet's ray
-                        hitInfo = ShootHitScan(origin, pelDir, pelRot);
-                        hitSomething = hitInfo.collider != null;
-
-                        // If we hit an entity, make it reduce its hp by the weapon's dmg
-                        if (hitSomething)
-                        {
-                            ApplyDamageToEnt(hitInfo, pelDir);
-                        }
-
-                        // Cosmetic projectile
-                        if (currStats.projectile != null)
-                        {
-                            // Get point and direction from where the visual projectile should fire (gun barrel)
-                            // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
-                            offsetOrigin = origin + pelRot * new Vector3(offset.x, offset.y);
-                            offsetDir = Vector3.Normalize(origin + 50 * pelDir - offsetOrigin);
-                            if (hitInfo.collider != null)
-                            {
-                                offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
-                            }
-                            // Test: Adding the speed of the shooter for better cosmetic projectile
-                            offsetOrigin += speed;
-                            // Shoot the projectile with the calculated direction and point with offset                           
-                            ShootProjectile(offsetOrigin, offsetDir, rotation);
-                        }
+                        hitInfo = ShootHitScan(origin, pelDir);
+                        CheckIfHit(hitInfo, pelDir);
+                        ShootCosmeticProj(origin, rotation, pelDir, hitInfo, speed);
+                        
                     }
                     break;
 
                 case WeaponType.PROJECTILE:
-                    offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
-                    ShootProjectile(offsetOrigin, direction, rotation);
+                    Vector3 projOffsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
+                    ShootProjectile(projOffsetOrigin, direction, rotation);
                     break;
+            }
+        }
+    }
+
+    void ShootCosmeticProj(Vector3 origin, Quaternion rotation, Vector3 dir, RaycastHit hitInfo, Vector3 speed)
+    {
+        // Cosmetic projectile
+        if (currStats.projectile != null)
+        {
+            // Get point and direction from where the visual projectile should fire (gun barrel)
+            // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
+            Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
+            Vector3 offsetDir = Vector3.Normalize(origin + 50 * dir - offsetOrigin);
+            if (hitInfo.collider != null)
+            {
+                offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
+            }
+            // Test: Adding the speed of the shooter for better cosmetic projectile
+            offsetOrigin += speed;
+            // Shoot the projectile with the calculated direction and point with offset                           
+            ShootProjectile(offsetOrigin, offsetDir, rotation);
+        }
+    }
+
+    void CheckIfHit(RaycastHit hitInfo, Vector3 dir)
+    {
+        // If we hit an entity, make it reduce its hp by the weapon's dmg
+        if (hitInfo.collider != null)
+        {
+            if (hitInfo.collider.gameObject != GetOwner())
+            {
+                if (hitInfo.collider.gameObject.layer == LayerMask.NameToLayer("Hitbox"))
+                {
+                    try
+                    {
+                        ApplyDamageToHBox(hitInfo.collider.gameObject.GetComponent<HitboxScript>(), dir);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.Log("Caught exception: " + e);
+                        Debug.Log("Couldn't get HitboxScript from hitbox");
+                    }
+                }
             }
         }
     }
@@ -340,23 +344,25 @@ public class WeaponClass : MonoBehaviour
         return newRot;
     }
 
-    bool ApplyDamageToEnt(RaycastHit hitInfo, Vector3 dir)
+    bool ApplyDamageToHBox(HitboxScript hBox, Vector3 dir)
     {
-        if (hitInfo.collider.tag == "Entity")
+        try
         {
-            try
-            {
-                // Try to get entityclass from hit collider, then make it call its own takedamage function
-                EntityClass entityHit = hitInfo.collider.gameObject.GetComponent<EntityClass>();
-                entityHit.TakeDamageKnockback((int)(currStats.dmg * dmgMod), currStats.knockbackStrength * knockbackMod * dir);
-                entityHit.OnGettingHit(GetOwner());
-            }
-            catch (Exception e)
-            {
-                Debug.Log("Caught exception: " + e);
-                Debug.Log("Couldn't convert GameObject tagged as \"Entity\"");
-                return false;
-            }
+            // Try to get entityclass from hit collider, then make it call its own takedamage function
+            EntityClass entityHit = hBox.GetOwnerEntity();
+            hBox.ReduceHP(Mathf.RoundToInt(currStats.dmg * dmgMod));
+
+            float critMult = 1.0f;
+            if (hBox.GetIsCritical()) critMult = currStats.criticalDmgMult;
+
+            entityHit.TakeDamageKnockback(Mathf.RoundToInt(currStats.dmg * dmgMod * hBox.GetDmgMultiplier()), currStats.knockbackStrength * dir);
+            entityHit.OnGettingHit(GetOwner());
+        }
+        catch (Exception e)
+        {
+            Debug.Log("Caught exception: " + e);
+            Debug.Log("Couldn't get owner of hitbox");
+            return false;
         }
         return true;
     }

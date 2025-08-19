@@ -187,6 +187,7 @@ public class PlayerControl : EntityClass
     void FixedUpdate()
     {
         CalcMovementAccelerationGrounded();
+        RotateModel();
         DoAttack();
     }
 
@@ -218,11 +219,11 @@ public class PlayerControl : EntityClass
     {
         if (attackInput.IsPressed())
         {
-            weapon[equippedItem].SetTriggerState(WeaponClass.TriggerState.HELD, cam, ref addedRotation, rigBod.linearVelocity * 2 * Time.fixedDeltaTime);
+            weapon[equippedItem].SetTriggerState(WeaponClass.TriggerState.HELD, cam, ref addedRotation, rigBod.linearVelocity * Time.fixedDeltaTime);
         }
         else
         {
-            weapon[equippedItem].SetTriggerState(WeaponClass.TriggerState.RELEASED, cam, ref addedRotation, rigBod.linearVelocity * 2 * Time.fixedDeltaTime);
+            weapon[equippedItem].SetTriggerState(WeaponClass.TriggerState.RELEASED, cam, ref addedRotation, rigBod.linearVelocity * Time.fixedDeltaTime);
         }
     }
 
@@ -254,7 +255,7 @@ public class PlayerControl : EntityClass
                 return;
             }
             // Add to inventory
-            consumable[0].IncreaseCount(1);
+            consumable[(int)p.puType].IncreaseCount(p.num);
         }
 
         // Destroy pickup

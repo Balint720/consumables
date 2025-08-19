@@ -25,8 +25,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7073670547599562193}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.007519104, y: 0.877876, z: 0.013791102, w: 0.4786304}
-  m_LocalPosition: {x: 0, y: 1.0799999, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -44,6 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76a6056a3ab4e5e43b1a0239314c8640, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  layerMaskOfHitscan:
+    serializedVersion: 2
+    m_Bits: 768
   baseStats:
     dmg: 1
     pelCount: 9
@@ -60,7 +63,7 @@ MonoBehaviour:
     recoilRecoveryTime: 0.8
     bloom: 0
     rpm: 300
-    knockbackStrength: 5
+    knockbackStrength: 0
     range: 1000
     projSpeed: -1
     chargeMaxDur: 0
@@ -68,7 +71,7 @@ MonoBehaviour:
     fireMode: 0
     projectile: {fileID: 4495842121767581641, guid: cbc1005230c63794e8b54c9e695f648e, type: 3}
   modifiedStats: []
-  offset: {x: 0.2, y: -0.2, z: 0.4}
+  offset: {x: 0.7, y: -0.2, z: 2}
   modelOffset: {x: 0, y: 0, z: 0}
   modelOffsetRot: {x: 0, y: 0, z: 0, w: 0}
   modelScale: {x: 0, y: 0, z: 0}

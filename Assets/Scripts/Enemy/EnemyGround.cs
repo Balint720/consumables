@@ -131,14 +131,12 @@ public class EnemyGround : EntityClass
             // Are we standing on a mesh link, if so, handle it
             if (nav.isOnOffMeshLink)
             {
-
                 // Check if the distance between the link's start- and endpoint is smaller than the distance of our current position and the point we want to go to
                 if ((nav.currentOffMeshLinkData.endPos - nav.currentOffMeshLinkData.startPos).sqrMagnitude < (nav.destination - rigBod.position).sqrMagnitude)
                 {
                     // Based on link area type, we handle the path
                     switch (nav.currentOffMeshLinkData.linkType)
                     {
-                        // 2: Jump area
                         case OffMeshLinkType.LinkTypeJumpAcross:
                             doJump = true;
                             break;
@@ -151,7 +149,8 @@ public class EnemyGround : EntityClass
             }
 
             // Calculate the movement based on navmesh next position using entity movement
-            CalcMovementGrounded(nav.steeringTarget, rot, doJump, howCloseToNavPos);
+            //CalcMovementGrounded(nav.steeringTarget, rot, doJump, howCloseToNavPos);
+            CalcMovementAccelerationGrounded();
             nav.nextPosition = rigBod.position;
 
             // Based on enemy state:
@@ -246,7 +245,7 @@ public class EnemyGround : EntityClass
                     dashReady = false;
                     currDashCooldown = dashCooldown;
 
-                    enState = EnemyState.DASHSTART;
+                    //enState = EnemyState.DASHSTART;
                 }
 
             }

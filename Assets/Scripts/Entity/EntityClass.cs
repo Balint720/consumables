@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework.Internal;
 using TMPro;
 using Unity.VisualScripting;
+using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.UI;
+using UnityEngine.UIElements;
 
 // Entity
 // Class to be inherited
@@ -46,12 +49,16 @@ public class EntityClass : MonoBehaviour
 
     // Unity components
     protected Rigidbody rigBod;
-    protected Collider coll;
-    protected float heightOfColl;
-    protected float radiusOfColl;
+    protected float heightOfEnvColl;
+    protected float radiusOfEnvColl;
     RaycastHit groundHitInfo;
     Vector3 normalOfGround;
     GameObject groundObj;
+
+    BoxCollider envColl;                            // Rigid body environment hitbox
+    Transform modelTrans;                           // Transform of model
+    Dictionary<string, Transform> modelChildTrans;  // Transforms of parts of model
+    Dictionary<string, Collider> hitboxes;          // Hitboxes
 
     // Character movement state
     protected enum State
@@ -69,7 +76,48 @@ public class EntityClass : MonoBehaviour
         // Instantiate, assign components
         extraTags = new List<String>();
         rigBod = GetComponent<Rigidbody>();
-        coll = GetComponent<Collider>();
+        envColl = GetComponent<BoxCollider>();
+        if (rigBod == null)
+        {
+            Debug.Log("Entity " + gameObject.name + " doesn't have a Rigidbody");
+            gameObject.SetActive(false);
+            return;
+        }
+        if (envColl == null)
+        {
+            Debug.Log("Entity " + gameObject.name + " doesn't have an environment collider");
+            gameObject.SetActive(false);
+            return;
+        }
+
+        Transform[] transes = GetComponentsInChildren<Transform>();
+        Collider[] cols = GetComponentsInChildren<Collider>();
+
+        modelChildTrans = new Dictionary<string, Transform>();
+        hitboxes = new Dictionary<string, Collider>();
+
+        for (int i = 0; i < transes.Count(); i++)
+        {
+            if (transes[i].name != name)
+            {
+                if (transes[i].name == "Model")
+                {
+                    modelTrans = transes[i];
+                }
+                else if (transes[i].IsChildOf(modelTrans))
+                {
+                    modelChildTrans.Add(transes[i].name, transes[i]);
+                }
+            }
+        }
+
+        for (int i = 0; i < cols.Count(); i++)
+        {
+            if (cols[i].name != name)
+            {
+                hitboxes.Add(cols[i].name, cols[i]);
+            }
+        }
 
         // Set variables
         HP = maxHP;
@@ -88,34 +136,11 @@ public class EntityClass : MonoBehaviour
         gravSlopeMultiplier = 1.0f;
         groundObj = null;
 
-        if (coll != null)
-        {
-            try
-            {
-                CapsuleCollider capColl = GetComponent<CapsuleCollider>();
-                BoxCollider boxColl = GetComponent<BoxCollider>();
-                if (capColl != null)
-                {
-                    heightOfColl = capColl.height;
-                    radiusOfColl = capColl.radius;
-                }
-                else if (boxColl != null)
-                {
-                    heightOfColl = boxColl.size.y;
-                    radiusOfColl = (boxColl.size.x >= boxColl.size.z) ? boxColl.size.x / 2 : boxColl.size.z / 2;
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.Log(e);
-            }
-        }
-
-        if (rigBod != null)
-        {
-            rigBod.isKinematic = false;
-            rigBod.detectCollisions = true;
-        }
+        // Set up rigidbody in case it is set wrong in editor
+        rigBod.isKinematic = false;
+        rigBod.detectCollisions = true;
+        rigBod.freezeRotation = true;
+        rigBod.constraints = RigidbodyConstraints.FreezeRotation;
 
         SphereDebug = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         SphereDebug.GetComponent<Collider>().enabled = false;
@@ -137,7 +162,7 @@ public class EntityClass : MonoBehaviour
         State prevFrame = movState;
 
         // Set state based on if ground beneath
-        if (Physics.Raycast(transform.position - new Vector3(0, heightOfColl / 2, 0), transform.up * (-1), out groundHitInfo, distanceOfGroundCheck))
+        if (Physics.Raycast(transform.position - new Vector3(0, envColl.size.y / 2, 0), transform.up * (-1), out groundHitInfo, distanceOfGroundCheck))
         {
             movState = State.GROUNDED;
             SphereDebug.transform.position = groundHitInfo.point;
@@ -165,7 +190,7 @@ public class EntityClass : MonoBehaviour
                     vertSpeed = 0.0f;
                     if (groundHitInfo.distance > distanceOfGroundCheck / 2.0f)
                     {
-                        rigBod.position = new Vector3(rigBod.position.x, groundHitInfo.point.y + ((heightOfColl + distanceOfGroundCheck) / 2.0f), rigBod.position.z);
+                        rigBod.position = new Vector3(rigBod.position.x, groundHitInfo.point.y + ((envColl.size.y + distanceOfGroundCheck) / 2.0f), rigBod.position.z);
                     }
                 }
                 break;
@@ -234,20 +259,16 @@ public class EntityClass : MonoBehaviour
 
     }
 
-    protected private void CalcMovementAccelerationGrounded()
+    protected void CalcMovementAccelerationGrounded(Vector3 dirIn = new Vector3())
     {
-        Vector3 forward = transform.forward;
-        Vector3 right = transform.right;
+        Vector3 forward = Quaternion.Euler(0, rotation.y, 0) * transform.forward;
+        Vector3 right = Quaternion.Euler(0, rotation.y, 0) * transform.right;
 
-        Debug.DrawRay(transform.position, transform.forward);
         // Check if ground beneath
         if (groundObj != null)
         {
-            Debug.Log("Current ground is " + groundObj.name);
             movState = State.GROUNDED;
-            Debug.Log("Angle: " + Mathf.Rad2Deg * Mathf.Acos(Vector3.Dot(transform.forward, normalOfGround)));
-            forward = Quaternion.AngleAxis(90.0f - Mathf.Rad2Deg * Mathf.Acos(Vector3.Dot(transform.forward, normalOfGround)), transform.right) * transform.forward;
-            Debug.DrawRay(transform.position, forward);
+            forward = Quaternion.AngleAxis(90.0f - Mathf.Rad2Deg * Mathf.Acos(Vector3.Dot(forward, normalOfGround)), right) * forward;
             right = Vector3.Cross(normalOfGround, forward);
         }
         else
@@ -257,7 +278,15 @@ public class EntityClass : MonoBehaviour
 
         // Horizontal Movement
         Vector3 a = Vector3.zero;
-        Vector3 inputDir = moveVect.z * forward + moveVect.x * right;
+        Vector3 inputDir = Vector3.zero;
+        if (dirIn == new Vector3())
+        {
+            inputDir = moveVect.z * forward + moveVect.x * right;
+        }
+        else
+        {
+            inputDir = dirIn;
+        }
 
         float forwardsSpeed = Vector3.Dot(rigBod.linearVelocity, forward);
         float sideSpeed = Vector3.Dot(rigBod.linearVelocity, right);
@@ -297,7 +326,7 @@ public class EntityClass : MonoBehaviour
         rigBod.AddForce(a, ForceMode.VelocityChange);
         rigBod.AddForce(currGravVec, ForceMode.Acceleration);
 
-        rigBod.MoveRotation(Quaternion.Euler(0, rotation.y, 0));
+        //rigBod.MoveRotation(Quaternion.Euler(0, rotation.y, 0));
 
     }
 
@@ -371,6 +400,8 @@ public class EntityClass : MonoBehaviour
         HP -= dmg;
         knockback = knock;
 
+        Debug.Log("HP: " + HP);
+
         if (HP <= 0)
         {
             ZeroHP();
@@ -434,12 +465,15 @@ public class EntityClass : MonoBehaviour
     {
         if (cInfo.collider.CompareTag("Environment"))
         {
-            Vector3 n = cInfo.GetContact(0).normal;
-            float angle = Mathf.Acos(Vector3.Dot(new Vector3(n.x, 0.0f, n.z), n)) * Mathf.Rad2Deg;
-            if (angle > 10.0f)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
+            if (cInfo.GetContact(0).thisCollider == envColl)
             {
-                groundObj = cInfo.gameObject;
-                normalOfGround = n;
+                Vector3 n = cInfo.GetContact(0).normal;
+                float angle = Mathf.Acos(Vector3.Dot(new Vector3(n.x, 0.0f, n.z), n)) * Mathf.Rad2Deg;
+                if (angle > 10.0f)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
+                {
+                    groundObj = cInfo.gameObject;
+                    normalOfGround = n;
+                }
             }
         }
     }
@@ -453,5 +487,10 @@ public class EntityClass : MonoBehaviour
                 groundObj = null;
             }
         }
+    }
+
+    protected void RotateModel()
+    {
+        modelTrans.rotation = Quaternion.Euler(0, rotation.y, 0);
     }
 }

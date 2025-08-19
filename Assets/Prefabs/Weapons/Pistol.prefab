@@ -47,6 +47,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76a6056a3ab4e5e43b1a0239314c8640, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  layerMaskOfHitscan:
+    serializedVersion: 2
+    m_Bits: 768
   baseStats:
     dmg: 1
     pelCount: 0
@@ -57,6 +60,7 @@ MonoBehaviour:
     knockbackStrength: 5
     range: 1000
     projSpeed: -1
+    chargeMaxDur: 0
     weaponType: 0
     fireMode: 0
     projectile: {fileID: 4495842121767581641, guid: cbc1005230c63794e8b54c9e695f648e, type: 3}
@@ -70,6 +74,7 @@ MonoBehaviour:
     knockbackStrength: 1
     range: 600
     projSpeed: -1
+    chargeMaxDur: 0
     weaponType: 0
     fireMode: 1
     projectile: {fileID: 4495842121767581641, guid: cbc1005230c63794e8b54c9e695f648e, type: 3}
@@ -82,6 +87,7 @@ MonoBehaviour:
     knockbackStrength: 0
     range: 0
     projSpeed: 0
+    chargeMaxDur: 0
     weaponType: 0
     fireMode: 0
     projectile: {fileID: 0}
@@ -94,6 +100,7 @@ MonoBehaviour:
     knockbackStrength: 0
     range: 0
     projSpeed: 0
+    chargeMaxDur: 0
     weaponType: 0
     fireMode: 0
     projectile: {fileID: 0}

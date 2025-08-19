@@ -45,6 +45,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76a6056a3ab4e5e43b1a0239314c8640, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  layerMaskOfHitscan:
+    serializedVersion: 2
+    m_Bits: 768
   baseStats:
     dmg: 1
     pelCount: 0
