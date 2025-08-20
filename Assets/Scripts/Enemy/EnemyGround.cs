@@ -93,8 +93,11 @@ public class EnemyGround : EntityClass
         if (HP > 0)
         {
             // Get direction to target for calculating rotation
-            Vector3 dir = Vector3.zero;
-            Quaternion rot = Quaternion.identity;
+            Vector3 lookDir = Vector3.zero;
+            //Quaternion rot = Quaternion.identity;
+
+            Vector3 forward = transform.forward;
+            Vector3 right = transform.right;
 
             switch (enState)
             {
@@ -103,27 +106,29 @@ public class EnemyGround : EntityClass
                     if (entToChase != null)
                     {
                         // Look towards the entity that is being chased if it can see it
-                        dir = (entToChase.transform.position - rigBod.position).normalized;
+                        lookDir = (entToChase.transform.position - rigBod.position).normalized;
 
                         // Cast a ray towards the entity, which if not blocked by any colliders means we look at them, otherwise we look towards the direction we are going
                         RaycastHit rayHit;
-                        Physics.Raycast(rigBod.position, dir, out rayHit);
+                        Physics.Raycast(rigBod.position, lookDir, out rayHit);
                         if (rayHit.collider.gameObject.name == entToChase.gameObject.name)
                         {
-                            if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }
+                            //if (lookDir.x != 0.0f && lookDir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(lookDir.x, 0, lookDir.z)); }
                         }
                         else
                         {
-                            dir = (nav.steeringTarget - rigBod.position).normalized;
-                            if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }               // Rotation to the position being moved to
+                            lookDir = (nav.steeringTarget - rigBod.position).normalized;
+                            //if (lookDir.x != 0.0f && lookDir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(lookDir.x, 0, lookDir.z)); }               // Rotation to the position being moved to
                         }
                     }
                     break;
                 default:
-                    dir = (nav.steeringTarget - rigBod.position).normalized;
-                    if (dir.x != 0.0f && dir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)); }               // Rotation to the position being moved to
+                    lookDir = (nav.steeringTarget - rigBod.position).normalized;
+                    //if (lookDir.x != 0.0f && lookDir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(lookDir.x, 0, lookDir.z)); }               // Rotation to the position being moved to
                     break;
             }
+
+            rotation.y = Vector3.SignedAngle(transform.forward, lookDir, new Vector3(0.0f, 1.0f, 0.0f));
 
             // Jumping variable
             bool doJump = false;
@@ -148,9 +153,21 @@ public class EnemyGround : EntityClass
                 }
             }
 
-            // Calculate the movement based on navmesh next position using entity movement
-            //CalcMovementGrounded(nav.steeringTarget, rot, doJump, howCloseToNavPos);
+            Vector3 dir = (nav.steeringTarget - rigBod.position).normalized;
+            Vector3 forDir = Vector3.zero;
+            Vector3 horDir = Vector3.zero;
+
+            if ((nav.destination - rigBod.position).sqrMagnitude > howCloseToNavPos * howCloseToNavPos)
+            {
+                forDir = Vector3.Dot(dir, forward) * forward;
+                horDir = Vector3.Dot(dir, right) * right;
+            }
+
+            Vector3 v = (forDir + horDir).normalized;
+            moveVect.Set(v.x, (doJump) ? 1.0f : 0.0f, v.z);
+            Debug.DrawRay(rigBod.position, moveVect, Color.red, 10.0f);
             CalcMovementAccelerationGrounded();
+            RotateModel();
             nav.nextPosition = rigBod.position;
 
             // Based on enemy state:

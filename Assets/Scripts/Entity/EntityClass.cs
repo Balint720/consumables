@@ -259,10 +259,17 @@ public class EntityClass : MonoBehaviour
 
     }
 
-    protected void CalcMovementAccelerationGrounded(Vector3 dirIn = new Vector3())
+    protected void CalcMovementAccelerationGrounded(bool rotateForwardAndRight = false)
     {
-        Vector3 forward = Quaternion.Euler(0, rotation.y, 0) * transform.forward;
-        Vector3 right = Quaternion.Euler(0, rotation.y, 0) * transform.right;
+        Vector3 forward = transform.forward;
+        Vector3 right = transform.right;
+
+        if (rotateForwardAndRight)
+        {
+            forward = Quaternion.Euler(0, rotation.y, 0) * transform.forward;
+            right = Quaternion.Euler(0, rotation.y, 0) * transform.right;
+        }
+        
 
         // Check if ground beneath
         if (groundObj != null)
@@ -278,15 +285,7 @@ public class EntityClass : MonoBehaviour
 
         // Horizontal Movement
         Vector3 a = Vector3.zero;
-        Vector3 inputDir = Vector3.zero;
-        if (dirIn == new Vector3())
-        {
-            inputDir = moveVect.z * forward + moveVect.x * right;
-        }
-        else
-        {
-            inputDir = dirIn;
-        }
+        Vector3 inputDir = moveVect.z * forward + moveVect.x * right;
 
         float forwardsSpeed = Vector3.Dot(rigBod.linearVelocity, forward);
         float sideSpeed = Vector3.Dot(rigBod.linearVelocity, right);
@@ -325,8 +324,6 @@ public class EntityClass : MonoBehaviour
         // Apply movement
         rigBod.AddForce(a, ForceMode.VelocityChange);
         rigBod.AddForce(currGravVec, ForceMode.Acceleration);
-
-        //rigBod.MoveRotation(Quaternion.Euler(0, rotation.y, 0));
 
     }
 
