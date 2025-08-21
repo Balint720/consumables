@@ -182,6 +182,8 @@ public class PlayerControl : EntityClass
 
         weapon[equippedItem].transform.position = transform.position;
         weapon[equippedItem].transform.rotation = Quaternion.Euler(rotation.x, rotation.y, 0);
+
+        DebugText.text = HP.ToString();
     }
 
     void FixedUpdate()
@@ -227,16 +229,6 @@ public class PlayerControl : EntityClass
         }
     }
 
-    IEnumerator AddRotGradual(Vector2 rotToAdd, int increments)
-    {
-        Vector2 incVec = rotToAdd / increments;
-        for (int i = 0; i < increments; i++)
-        {
-            rotation += incVec;
-            yield return null;
-        }
-    }
-
     void OnTriggerEnter(Collider other)
     {
         // If we hit a pickup
@@ -256,10 +248,10 @@ public class PlayerControl : EntityClass
             }
             // Add to inventory
             consumable[(int)p.puType].IncreaseCount(p.num);
-        }
 
-        // Destroy pickup
-        Destroy(other.gameObject);
+            // Destroy pickup
+            Destroy(other.gameObject);
+        }
     }
 
     void UseConsumable(int index)

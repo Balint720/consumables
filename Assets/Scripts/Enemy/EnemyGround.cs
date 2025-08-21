@@ -99,6 +99,7 @@ public class EnemyGround : EntityClass
             Vector3 forward = transform.forward;
             Vector3 right = transform.right;
 
+            // Get look direction
             switch (enState)
             {
                 case EnemyState.CHASE:
@@ -111,23 +112,18 @@ public class EnemyGround : EntityClass
                         // Cast a ray towards the entity, which if not blocked by any colliders means we look at them, otherwise we look towards the direction we are going
                         RaycastHit rayHit;
                         Physics.Raycast(rigBod.position, lookDir, out rayHit);
-                        if (rayHit.collider.gameObject.name == entToChase.gameObject.name)
-                        {
-                            //if (lookDir.x != 0.0f && lookDir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(lookDir.x, 0, lookDir.z)); }
-                        }
-                        else
+                        if (rayHit.collider.gameObject.name != entToChase.gameObject.name)
                         {
                             lookDir = (nav.steeringTarget - rigBod.position).normalized;
-                            //if (lookDir.x != 0.0f && lookDir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(lookDir.x, 0, lookDir.z)); }               // Rotation to the position being moved to
                         }
                     }
                     break;
                 default:
                     lookDir = (nav.steeringTarget - rigBod.position).normalized;
-                    //if (lookDir.x != 0.0f && lookDir.z != 0.0f) { rot = Quaternion.LookRotation(new Vector3(lookDir.x, 0, lookDir.z)); }               // Rotation to the position being moved to
                     break;
             }
 
+            rotation.x = Vector3.SignedAngle(transform.forward, lookDir, transform.right);
             rotation.y = Vector3.SignedAngle(transform.forward, lookDir, new Vector3(0.0f, 1.0f, 0.0f));
 
             // Jumping variable
@@ -164,8 +160,7 @@ public class EnemyGround : EntityClass
             }
 
             Vector3 v = (forDir + horDir).normalized;
-            moveVect.Set(v.x, (doJump) ? 1.0f : 0.0f, v.z);
-            Debug.DrawRay(rigBod.position, moveVect, Color.red, 10.0f);
+            moveVect.Set(v.x, doJump ? 1.0f : 0.0f, v.z);
             CalcMovementAccelerationGrounded();
             RotateModel();
             nav.nextPosition = rigBod.position;

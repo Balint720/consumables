@@ -2,6 +2,10 @@ using Unity.VisualScripting;
 using UnityEngine;
 using System;
 using UnityEditor;
+using System.Linq;
+using System.Collections;
+using UnityEngine.InputSystem.Controls;
+using System.Runtime.CompilerServices;
 
 
 public class ProjectileClass : MonoBehaviour
@@ -13,7 +17,8 @@ public class ProjectileClass : MonoBehaviour
     Rigidbody rigBod;
 
     private Vector3 dir;                    // Direction the projectile is going
-    private Vector3 dirAccel;               // Acceleration vector (gravity, slowing down, etc)
+    private Vector3 speedVec;
+    public float grav;
 
     // Stats
     public bool cosmetic;                   // Is projectile cosmetic (for hitscan weapons for ex)
@@ -27,26 +32,31 @@ public class ProjectileClass : MonoBehaviour
     // Spawn
     private Vector3 spawnPos;               // Spawn position
     private float spawnTime;                // How long projectile has been alive
+    public float deleteTime;
+    private bool deleteBool;
+    private bool isInitialized = false;
 
     // Static
     static float maxLifeTime = 30.0f;
+    static float timeBeforeCanHitSelf = 0.5f;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        Debug.Log("Start started");
         // Unity components
         rigBod = GetComponent<Rigidbody>();
         hitbox = GetComponent<Collider>();
         if (rigBod == null)
         {
             Debug.Log("Projectile " + gameObject.name + " doesn't have a Rigidbody");
-            Destroy(this);
+            Destroy(gameObject);
             return;
         }
         if (hitbox == null)
         {
             Debug.Log("Projectile " + gameObject.name + " doesn't have a hitbox");
-            Destroy(this);
+            Destroy(gameObject);
             return;
         }
 
@@ -59,66 +69,59 @@ public class ProjectileClass : MonoBehaviour
         // Set default values
         spawnPos = rigBod.position;
         spawnTime = Time.time;
-    }
+        speedVec = speed * dir;
+        deleteBool = false;
 
-    // Update is called once per frame
-    void Update()
-    {
-
+        // Turn on collider
+        //hitbox.enabled = true;
+        isInitialized = true;
     }
 
     void FixedUpdate()
     {
-        // Move rigidbody
-        rigBod.MovePosition(rigBod.position + dir * speed * Time.deltaTime);
-
-        // If projectile has travelled the defined range or has lived for over 30 seconds destroy projectile
-        if ((rigBod.position - spawnPos).magnitude > range || Time.time - spawnTime > maxLifeTime)
+        if (hitbox.enabled)
         {
-            Destroy(gameObject);
+            rigBod.MovePosition(rigBod.position + Time.fixedDeltaTime * speedVec);
+            rigBod.MoveRotation(Quaternion.LookRotation(speedVec));
+
+            speedVec += grav * Time.fixedDeltaTime * new Vector3(0.0f, -1.0f, 0.0f);
+            speedVec += accel * Time.fixedDeltaTime * dir;
+
+            // If projectile has travelled the defined range or has lived for over 30 seconds destroy projectile
+            if ((rigBod.position - spawnPos).magnitude > range || Time.time - spawnTime > maxLifeTime)
+            {
+                Destroy(gameObject);
+            }
         }
     }
-    
+
     void OnCollisionEnter(Collision collision)
     {
-        Debug.Log(LayerMask.LayerToName(collision.gameObject.layer));
-        if (collision.gameObject.layer == LayerMask.NameToLayer("Obstacle"))
-        {
-            Destroy(gameObject);
-        }
-        else if (collision.gameObject.layer == LayerMask.NameToLayer("Hitbox"))
-        {
-
-            if (!cosmetic)
-            {
-                try
-                {
-                    ApplyDamageToHBox(collision.gameObject.GetComponent<HitboxScript>());
-                }
-                catch (Exception e)
-                {
-                    Debug.Log("Caught exception: " + e);
-                    Debug.Log("Couldn't get HitboxScript from hitbox");                    
-                }
-            }
-            Destroy(gameObject);
-        }
-        else if (collision.gameObject.layer == LayerMask.NameToLayer("Projectile"))
-        {
-            // For projectiles which can hit other projectiles
-        }
-        
+        OnTriggerEnter(collision.collider);
     }
 
     void OnTriggerEnter(Collider other)
     {
+        if (!isInitialized)
+        {
+            Start();
+        }
         if (other.gameObject.layer == LayerMask.NameToLayer("Obstacle"))
         {
-            Destroy(gameObject);
+            DeleteSelf(other.transform);
         }
         else if (other.gameObject.layer == LayerMask.NameToLayer("Hitbox"))
         {
-            Debug.Log(other.name);
+            // Exit if hit self before set time passed
+            if (other.transform.IsChildOf(GetOwner().transform))
+            {
+                // Behaviour might be changed
+                if (Time.time - spawnTime < timeBeforeCanHitSelf)
+                {
+                    return;
+                }
+            }
+
             if (!cosmetic)
             {
                 try
@@ -131,7 +134,8 @@ public class ProjectileClass : MonoBehaviour
                     Debug.Log("Couldn't get HitboxScript from hitbox");
                 }
             }
-            Destroy(gameObject);
+
+            DeleteSelf(other.transform);
         }
         else if (other.gameObject.layer == LayerMask.NameToLayer("Projectile"))
         {
@@ -203,5 +207,41 @@ public class ProjectileClass : MonoBehaviour
         {
             knockbackStrength = knockbackStrengthIn;
         }
+    }
+
+    void DeleteSelf(Transform t = null)
+    {
+        if (deleteTime <= 0.0f)
+        {
+            Destroy(gameObject);
+        }
+        else
+        {
+            if (hitbox != null)
+            {
+                hitbox.enabled = false;
+            }
+
+            rigBod.detectCollisions = false;
+            if (t != null)
+            {
+                transform.SetParent(t, true);
+            }
+
+            StartCoroutine(Deletion());
+        }
+    }
+
+    IEnumerator Deletion()
+    {
+        if (deleteBool)
+        {
+            Destroy(gameObject);
+        }
+        else
+        {
+            deleteBool = true;
+        }
+        yield return new WaitForSeconds(deleteTime);
     }
 }

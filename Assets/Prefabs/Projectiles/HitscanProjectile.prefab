@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: -3455010836631240250}
   - component: {fileID: 1635503264048433965}
   - component: {fileID: -4957748313027279844}
-  m_Layer: 8
+  m_Layer: 10
   m_Name: HitscanProjectile
   m_TagString: Untagged
   m_Icon: {fileID: 0}

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework.Internal;
@@ -269,7 +270,7 @@ public class EntityClass : MonoBehaviour
             forward = Quaternion.Euler(0, rotation.y, 0) * transform.forward;
             right = Quaternion.Euler(0, rotation.y, 0) * transform.right;
         }
-        
+
 
         // Check if ground beneath
         if (groundObj != null)
@@ -397,8 +398,6 @@ public class EntityClass : MonoBehaviour
         HP -= dmg;
         knockback = knock;
 
-        Debug.Log("HP: " + HP);
-
         if (HP <= 0)
         {
             ZeroHP();
@@ -488,6 +487,17 @@ public class EntityClass : MonoBehaviour
 
     protected void RotateModel()
     {
-        modelTrans.rotation = Quaternion.Euler(0, rotation.y, 0);
+        //modelTrans.rotation = Quaternion.Euler(0, rotation.y, 0);
+        modelTrans.rotation = Quaternion.RotateTowards(modelTrans.rotation, Quaternion.Euler(0, rotation.y, 0), turnSpeedRatio*Time.fixedDeltaTime);
+    }
+
+    protected IEnumerator AddRotGradual(Vector2 rotToAdd, int increments)
+    {
+        Vector2 incVec = rotToAdd / increments;
+        for (int i = 0; i < increments; i++)
+        {
+            rotation += incVec;
+            yield return null;
+        }
     }
 }
