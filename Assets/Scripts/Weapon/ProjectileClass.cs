@@ -43,7 +43,8 @@ public class ProjectileClass : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        Debug.Log("Start started");
+        if (isInitialized) return;
+
         // Unity components
         rigBod = GetComponent<Rigidbody>();
         hitbox = GetComponent<Collider>();

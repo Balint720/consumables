@@ -267,7 +267,5 @@ public class EnemyGround : EntityClass
                 Debug.Log("Couldn't get EntityClass component from GameObject tagged as \"Entity\"");
             }
         }
-
-        Debug.Log("Got hit by " + hitBy);
     }
 }
