@@ -1,0 +1,49 @@
+using UnityEngine;
+
+public class HitboxScript : MonoBehaviour
+{
+    EntityClass owner;
+    public float dmgMultiplier;
+    public bool critical;
+    public int HP;
+
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        owner = GetComponentInParent<EntityClass>();
+        if (HP <= 0)
+        {
+            HP = owner.maxHP;
+        }
+    }
+
+    public EntityClass GetOwnerEntity()
+    {
+        return owner;
+    }
+
+    public float GetDmgMultiplier()
+    {
+        return dmgMultiplier;
+    }
+
+    public bool GetIsCritical()
+    {
+        return critical;
+    }
+
+    public void ReduceHP(int dmg)
+    {
+        HP -= dmg;
+        
+        if (HP <= 0)
+        {
+            ZeroHP();
+        }
+    }
+
+    void ZeroHP()
+    {
+        
+    }
+}

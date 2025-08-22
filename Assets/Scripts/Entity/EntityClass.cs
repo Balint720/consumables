@@ -1,8 +1,15 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using NUnit.Framework.Internal;
 using TMPro;
+using Unity.VisualScripting;
+using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.UI;
+using UnityEngine.UIElements;
 
 // Entity
 // Class to be inherited
@@ -16,14 +23,22 @@ public class EntityClass : MonoBehaviour
 
     // Movement Variables
     public float HSpeedCap;                         // Horizontal speed cap
-    public float VSpeedCap;                         // Vertical speed cap
+    protected float HSpeedCapMultiplier;
+    public float VSpeedCap;                         // Vertical speed cap (Jump height if grounded)
+    protected float VSpeedCapMultiplier;
+    public float fallSpeedCap;
     public float HAccel;                            // Horizontal acceleration
+    protected float HAccelMultiplier;
+    public float VAccel;
+    protected float VAccelMultiplier;
     public float grav;                              // Gravity effect
+    float gravSlopeMultiplier;
     protected Vector3 knockback;                    // Knockback vector
     protected float knockbackMod;                   // Knockback multiplier
     protected Vector3 moveVect;                     // Movement input vector
     public float turnSpeedRatio;                    // Turn speed ratio: how fast the character turns
     protected float turnSpeedMod;                   // Turn speed modifier
+    public float distanceOfGroundCheck;
 
     // Current
     protected Vector3 speed;                        // Speed vector
@@ -34,8 +49,17 @@ public class EntityClass : MonoBehaviour
     protected List<String> extraTags;
 
     // Unity components
-    protected CharacterController charCont;
     protected Rigidbody rigBod;
+    protected float heightOfEnvColl;
+    protected float radiusOfEnvColl;
+    RaycastHit groundHitInfo;
+    Vector3 normalOfGround;
+    GameObject groundObj;
+
+    BoxCollider envColl;                            // Rigid body environment hitbox
+    Transform modelTrans;                           // Transform of model
+    Dictionary<string, Transform> modelChildTrans;  // Transforms of parts of model
+    Dictionary<string, Collider> hitboxes;          // Hitboxes
 
     // Character movement state
     protected enum State
@@ -46,12 +70,55 @@ public class EntityClass : MonoBehaviour
 
     protected State movState;
 
+    GameObject SphereDebug;
+
     protected void EntityStart()
     {
         // Instantiate, assign components
         extraTags = new List<String>();
-        charCont = GetComponent<CharacterController>();
         rigBod = GetComponent<Rigidbody>();
+        envColl = GetComponent<BoxCollider>();
+        if (rigBod == null)
+        {
+            Debug.Log("Entity " + gameObject.name + " doesn't have a Rigidbody");
+            gameObject.SetActive(false);
+            return;
+        }
+        if (envColl == null)
+        {
+            Debug.Log("Entity " + gameObject.name + " doesn't have an environment collider");
+            gameObject.SetActive(false);
+            return;
+        }
+
+        Transform[] transes = GetComponentsInChildren<Transform>();
+        Collider[] cols = GetComponentsInChildren<Collider>();
+
+        modelChildTrans = new Dictionary<string, Transform>();
+        hitboxes = new Dictionary<string, Collider>();
+
+        for (int i = 0; i < transes.Count(); i++)
+        {
+            if (transes[i].name != name)
+            {
+                if (transes[i].name == "Model")
+                {
+                    modelTrans = transes[i];
+                }
+                else if (transes[i].IsChildOf(modelTrans))
+                {
+                    modelChildTrans.Add(transes[i].name, transes[i]);
+                }
+            }
+        }
+
+        for (int i = 0; i < cols.Count(); i++)
+        {
+            if (cols[i].name != name)
+            {
+                hitboxes.Add(cols[i].name, cols[i]);
+            }
+        }
 
         // Set variables
         HP = maxHP;
@@ -63,11 +130,22 @@ public class EntityClass : MonoBehaviour
         rotation = Vector2.zero;
         rotationQuat = Quaternion.identity;
         movState = State.AIRBORNE;
+        HSpeedCapMultiplier = 1.0f;
+        VSpeedCapMultiplier = 1.0f;
+        HAccelMultiplier = 1.0f;
+        VAccelMultiplier = 1.0f;
+        gravSlopeMultiplier = 1.0f;
+        groundObj = null;
 
-        if (rigBod != null)
-        {
-            rigBod.isKinematic = true;
-        }
+        // Set up rigidbody in case it is set wrong in editor
+        rigBod.isKinematic = false;
+        rigBod.detectCollisions = true;
+        rigBod.freezeRotation = true;
+        rigBod.constraints = RigidbodyConstraints.FreezeRotation;
+
+        SphereDebug = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        SphereDebug.GetComponent<Collider>().enabled = false;
+        SphereDebug.GetComponent<Renderer>().enabled = false;
     }
 
     /// <summary>
@@ -77,17 +155,18 @@ public class EntityClass : MonoBehaviour
     {
         // Calculate speed
         // Get current forwards and sideways speed
-        float forwardsSpeed = Vector3.Dot(charCont.velocity, transform.forward);
-        float sideSpeed = Vector3.Dot(charCont.velocity, transform.right);                      // We get these from the real speed of the character because sliding off of walls would make us shoot off them with max speed as soon as we are no longer colliding with them
-        float vertSpeed = Vector3.Dot(speed, new Vector3(0, 1, 0));                             // We get this from the "theoretical" speed vector because we want to keep negative speed while on the ground (shitty collision solution for walking down ramps)
+        float forwardsSpeed = Vector3.Dot(rigBod.linearVelocity, transform.forward);
+        float sideSpeed = Vector3.Dot(rigBod.linearVelocity, transform.right);                      // We get these from the real speed of the character because sliding off of walls would make us shoot off them with max speed as soon as we are no longer colliding with them
+        float vertSpeed = Vector3.Dot(rigBod.linearVelocity, new Vector3(0, 1, 0));
 
         // State on previous frame
         State prevFrame = movState;
 
         // Set state based on if ground beneath
-        if (charCont.isGrounded)
+        if (Physics.Raycast(transform.position - new Vector3(0, envColl.size.y / 2, 0), transform.up * (-1), out groundHitInfo, distanceOfGroundCheck))
         {
             movState = State.GROUNDED;
+            SphereDebug.transform.position = groundHitInfo.point;
         }
         else
         {
@@ -109,23 +188,29 @@ public class EntityClass : MonoBehaviour
                 }
                 else
                 {
-                    vertSpeed = -10 * grav * Time.fixedDeltaTime;
+                    vertSpeed = 0.0f;
+                    if (groundHitInfo.distance > distanceOfGroundCheck / 2.0f)
+                    {
+                        rigBod.position = new Vector3(rigBod.position.x, groundHitInfo.point.y + ((envColl.size.y + distanceOfGroundCheck) / 2.0f), rigBod.position.z);
+                    }
                 }
                 break;
             case State.AIRBORNE:
+                /*
                 // If we were grounded the last frame, then reset vertSpeed if it was negative
                 if (prevFrame == State.GROUNDED && vertSpeed < 0.0f)
                 {
                     vertSpeed = 0.0f;
                 }
-
+                */
                 // Apply gravity
                 vertSpeed -= grav * Time.fixedDeltaTime;
                 break;
         }
 
         // Add speeds together
-        speed = forwardsSpeed * transform.forward + sideSpeed * transform.right + new Vector3(0, vertSpeed, 0);
+        speed = forwardsSpeed * transform.forward + sideSpeed * transform.right;
+        speed += new Vector3(0, vertSpeed, 0);
 
         // Add knockback then reset it
         speed += knockback * knockbackMod;
@@ -135,6 +220,7 @@ public class EntityClass : MonoBehaviour
         {
             ApplyMoveRot();
         }
+
     }
 
     /// <summary>
@@ -143,7 +229,7 @@ public class EntityClass : MonoBehaviour
     /// <param name="nextPos">Position in world space to move to</param>
     /// <param name="rot">Rotation of character</param>
     /// <param name="doJump">Does the character jump?</param>
-    protected void CalcMovementGrounded(Vector3 nextPos, Quaternion rot, bool doJump = false)
+    protected void CalcMovementGrounded(Vector3 nextPos, Quaternion rot, bool doJump = false, float distanceCap = 0.0f)
     {
         // Get direction from next position and current position
         Vector3 dirWhole = nextPos - transform.position;
@@ -155,9 +241,90 @@ public class EntityClass : MonoBehaviour
         moveVect.y = doJump ? 1.0f : 0.0f;
         rotationQuat = rot;
 
+        float HSpeed = new Vector2(speed.x, speed.z).magnitude;
+        float timeToStop = HSpeed / (HAccel * HAccelMultiplier);
+
+        if (dirWhole.sqrMagnitude < Math.Pow(HSpeed * timeToStop - (1 / 2) * HAccel * HAccelMultiplier * timeToStop * timeToStop, 2)
+            || dirWhole.sqrMagnitude < distanceCap * distanceCap)
+        {
+            moveVect.x = 0.0f; moveVect.z = 0.0f;
+            //GetComponent<Renderer>().material.color = Color.red;
+        }
+        else
+        {
+            //GetComponent<Renderer>().material.color = Color.blue;
+        }
+
         // Calc movement but do not apply it, apply it with different setting
-        CalcMovementGrounded(false);
-        ApplyMoveRot(true);
+        CalcMovementGrounded();
+
+    }
+
+    protected void CalcMovementAccelerationGrounded(bool rotateForwardAndRight = false)
+    {
+        Vector3 forward = transform.forward;
+        Vector3 right = transform.right;
+
+        if (rotateForwardAndRight)
+        {
+            forward = Quaternion.Euler(0, rotation.y, 0) * transform.forward;
+            right = Quaternion.Euler(0, rotation.y, 0) * transform.right;
+        }
+
+
+        // Check if ground beneath
+        if (groundObj != null)
+        {
+            movState = State.GROUNDED;
+            forward = Quaternion.AngleAxis(90.0f - Mathf.Rad2Deg * Mathf.Acos(Vector3.Dot(forward, normalOfGround)), right) * forward;
+            right = Vector3.Cross(normalOfGround, forward);
+        }
+        else
+        {
+            movState = State.AIRBORNE;
+        }
+
+        // Horizontal Movement
+        Vector3 a = Vector3.zero;
+        Vector3 inputDir = moveVect.z * forward + moveVect.x * right;
+
+        float forwardsSpeed = Vector3.Dot(rigBod.linearVelocity, forward);
+        float sideSpeed = Vector3.Dot(rigBod.linearVelocity, right);
+
+        Vector3 horSpeed = forwardsSpeed * forward + sideSpeed * right;
+
+        Vector3 velChange = inputDir * HSpeedCap * HSpeedCapMultiplier - horSpeed;
+
+        if (velChange.sqrMagnitude > Mathf.Pow(HAccel * HAccelMultiplier, 2))
+        {
+            a = velChange.normalized * HAccel * HAccelMultiplier;
+        }
+        else
+        {
+            a = velChange;
+        }
+
+
+        Vector3 currGravVec = new Vector3(0.0f, -grav, 0.0f);
+
+        switch (movState)
+        {
+            case State.GROUNDED:
+
+                if (moveVect.y > 0.2)
+                {
+                    rigBod.linearVelocity = new Vector3(rigBod.linearVelocity.x, VSpeedCap * VSpeedCapMultiplier, rigBod.linearVelocity.z);
+                }
+
+                currGravVec = normalOfGround * (-1) * grav;
+                break;
+            case State.AIRBORNE:
+                break;
+        }
+
+        // Apply movement
+        rigBod.AddForce(a, ForceMode.VelocityChange);
+        rigBod.AddForce(currGravVec, ForceMode.Acceleration);
 
     }
 
@@ -171,15 +338,15 @@ public class EntityClass : MonoBehaviour
         // If inputVal is on, then add speed using acceleration, capping it at the speed cap
         if (Mathf.Abs(inputVal) > 0.2)
         {
-            speedVal += inputVal * (HAccel * Time.fixedDeltaTime);
-            if (Mathf.Abs(speedVal) > HSpeedCap) { speedVal = Mathf.Sign(speedVal) * HSpeedCap; }
+            speedVal += inputVal * (HAccel * HAccelMultiplier * Time.fixedDeltaTime);
+            if (Mathf.Abs(speedVal) > HSpeedCap * HSpeedCapMultiplier) { speedVal = Mathf.Sign(speedVal) * HSpeedCap * HSpeedCapMultiplier; }
         }
         // Otherwise, reduce it until it is below 0.5, at which point set it to 0
         else
         {
             if (Mathf.Abs(speedVal) > 0.5)
             {
-                speedVal -= Mathf.Sign(speedVal) * (HAccel * Time.fixedDeltaTime);
+                speedVal -= Mathf.Sign(speedVal) * (HAccel * HAccelMultiplier * Time.fixedDeltaTime);
             }
             else
             {
@@ -192,17 +359,32 @@ public class EntityClass : MonoBehaviour
     /// Applies movement based on speed vector and rotation vector/quaternion
     /// </summary>
     /// <param name="quatSlerpRot">If true, will use rotationQuat variable and Slerp between current rotation, if false, only sets rotation to yaw of rotation vector</param>
-    protected void ApplyMoveRot(bool quatSlerpRot = false)
+    protected void ApplyMoveRot(bool isPlayer = false)
     {
-        // Apply movement and yaw
-        charCont.Move(speed * Time.fixedDeltaTime);
-        if (quatSlerpRot)
+        /*
+        // Collision check
+        RaycastHit[] hitInfo;
+        hitInfo = rigBod.SweepTestAll(speed, speed.magnitude * Time.fixedDeltaTime, QueryTriggerInteraction.Ignore);
+        if (hitInfo != null)
         {
-            transform.rotation = Quaternion.Slerp(transform.rotation, rotationQuat, turnSpeedRatio * Time.fixedDeltaTime);
+            for (int i = 0; i < hitInfo.Length; i++)
+            {
+                Vector3 removeVec = hitInfo[i].normal * (-1) * Vector3.Dot(speed, hitInfo[i].normal * (-1));
+                speed -= removeVec;
+            }
+        }
+        */
+
+        rigBod.linearVelocity = speed;
+
+        if (isPlayer)
+        {
+            rigBod.MoveRotation(Quaternion.Euler(0, rotation.y, 0));
         }
         else
         {
-            transform.rotation = Quaternion.Euler(0, rotation.y, 0);
+            //transform.rotation = Quaternion.Slerp(transform.rotation, rotationQuat, turnSpeedRatio * Time.fixedDeltaTime);
+            rigBod.MoveRotation(rotationQuat);
         }
     }
 
@@ -227,8 +409,6 @@ public class EntityClass : MonoBehaviour
     /// </summary>
     protected void ZeroHP()
     {
-        charCont.enabled = false;
-        rigBod.isKinematic = true;
         rigBod.AddForce(knockback * knockbackMod, ForceMode.Force);
     }
 
@@ -272,4 +452,52 @@ public class EntityClass : MonoBehaviour
         }
     }
 
+    public Vector3 GetSpeed()
+    {
+        return speed;
+    }
+
+    void OnCollisionEnter(Collision cInfo)
+    {
+        if (cInfo.collider.CompareTag("Environment"))
+        {
+            if (cInfo.GetContact(0).thisCollider == envColl)
+            {
+                Vector3 n = cInfo.GetContact(0).normal;
+                float angle = Mathf.Acos(Vector3.Dot(new Vector3(n.x, 0.0f, n.z), n)) * Mathf.Rad2Deg;
+                if (angle > 10.0f)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
+                {
+                    groundObj = cInfo.gameObject;
+                    normalOfGround = n;
+                }
+            }
+        }
+    }
+
+    void OnCollisionExit(Collision cInfo)
+    {
+        if (groundObj != null)
+        {
+            if (cInfo.gameObject == groundObj)
+            {
+                groundObj = null;
+            }
+        }
+    }
+
+    protected void RotateModel()
+    {
+        //modelTrans.rotation = Quaternion.Euler(0, rotation.y, 0);
+        modelTrans.rotation = Quaternion.RotateTowards(modelTrans.rotation, Quaternion.Euler(0, rotation.y, 0), turnSpeedRatio*Time.fixedDeltaTime);
+    }
+
+    protected IEnumerator AddRotGradual(Vector2 rotToAdd, int increments)
+    {
+        Vector2 incVec = rotToAdd / increments;
+        for (int i = 0; i < increments; i++)
+        {
+            rotation += incVec;
+            yield return null;
+        }
+    }
 }

@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Entity
   - PickUp
+  - Environment
   layers:
   - Default
   - TransparentFX
@@ -13,12 +14,12 @@ TagManager:
   - 
   - Water
   - UI
-  - Player
+  - EnvironmentBox
+  - Model
+  - Hitbox
   - Obstacle
-  - 
-  - 
-  - 
-  - 
+  - Projectile
+  - Trigger
   - 
   - 
   - 

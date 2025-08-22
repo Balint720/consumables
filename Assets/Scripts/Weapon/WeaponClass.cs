@@ -17,45 +17,58 @@ public class WeaponClass : MonoBehaviour
     public enum FiringMode
     {
         SEMI,
-        AUTO
+        AUTO,
+        BOW,
+        CHARGE
     }
 
     public enum WeaponType
     {
         HITSCAN_SINGLE,
         HITSCAN_SPREAD,
-        PROJECTILE
+        PROJECTILE,
+        PROJECTILE_MULTIPLE
     }
 
-    public enum WeaponState
+    public enum WeaponModifier
     {
         BASE,
         ELECTRIC
     }
 
+    public enum TriggerState
+    {
+        RELEASED,
+        HELD
+    }
+
     [Serializable]
     public struct WeaponStats
     {
-        public int dmg;                                // Damage will be calculated for every bullet
-        public uint pelCount;                          // Pellet count for shotguns
-        public List<Vector2> recoilPattern;            // List of recoilVal values for recoil pattern (can also be where bullets from a shotgun go)
-        public float recoilRecoveryTime;               // How long until recoil resets in seconds
-        public float bloom;                            // Random spread of weapon, deviation from where the bullet should go, value is maximum possible deviation
-        public int rpm;                                // Fire rate: rounds per minute
-        public float knockbackStrength;                // Strength of knockback applied by weapon
-        public float range;                            // Range of weapon, for hitscan this is the max distance of the raycast, for projectiles the projectile gets destroyed after traveling this many units
-        public float projSpeed;                        // Speed of projectile
-        public WeaponType weaponType;                  // Hitscan, projectile etc
-        public FiringMode fireMode;                    // Basically, does holding down the mouse keep shooting or not
-        public ProjectileClass projectile;             // Projectile that is sent by weapon
+        public int dmg;                                 // Damage will be calculated for every bullet
+        public float criticalDmgMult;                   // Multiplier for damage if we hit critical hitbox
+        public uint pelCount;                           // Pellet count for shotguns
+        public List<Vector2> recoilPattern;             // List of recoilVal values for recoil pattern (can also be where bullets from a shotgun go)
+        public float recoilRecoveryTime;                // How long until recoil resets in seconds
+        public float bloom;                             // Random spread of weapon, deviation from where the bullet should go, value is maximum possible deviation
+        public int rpm;                                 // Fire rate: rounds per minute
+        public float knockbackStrength;                 // Strength of knockback applied by weapon
+        public float range;                             // Range of weapon, for hitscan this is the max distance of the raycast, for projectiles the projectile gets destroyed after traveling this many units
+        public float projSpeed;                         // Speed of projectile
+        public float chargeMaxDur;                      // How long to fully charge weapon (in seconds)
+        public WeaponType weaponType;                   // Hitscan, projectile etc
+        public FiringMode fireMode;
+        public ProjectileClass projectile;              // Projectile that is sent by weapon
     }
 
 
     int ownerID;                                // Get ID of weapon's owner
+    public LayerMask layerMaskOfHitscan;
 
     // State
-    WeaponState w_state;
-    WeaponState prev_w_state;
+    WeaponModifier w_mod;
+    WeaponModifier prev_w_mod;
+    TriggerState triggerState;
     bool isActive;
     bool isPartPlaying;
 
@@ -64,6 +77,7 @@ public class WeaponClass : MonoBehaviour
     public List<WeaponStats> modifiedStats;
     WeaponStats currStats;
     float currModDur;
+    float currChargeDur;
     float dmgMod;                               // Damage will be multiplied by this value
     int recoilInd;                              // Index of where we are in the recoil pattern
     float recoilValMod;                         // Recoil will be multiplied by this value
@@ -71,6 +85,7 @@ public class WeaponClass : MonoBehaviour
     float rpmMod;                               // RPM will be multiplied by this value
     float knockbackMod;                         // KnockbackStrength will be multiplied by this value
     float projSpeedMod;                         // Speed of projectile will be multiplied by this value
+    float chargeMaxDurMod;                      // Duration for maximum charge will be multiplied by this value
     public Vector3 offset;                      // Visual fired bullets are offset from here (Maybe projectiles will just straight up be offset)
 
     // Time
@@ -87,6 +102,11 @@ public class WeaponClass : MonoBehaviour
 
     void Start()
     {
+        if (layerMaskOfHitscan == LayerMask.GetMask())
+        {
+            layerMaskOfHitscan = LayerMask.GetMask("Hitbox", "Obstacle");
+        }
+
         // Set intial values for multipliers
         lastFireTime = 0.0f;
         dmgMod = 1.0f;
@@ -96,11 +116,14 @@ public class WeaponClass : MonoBehaviour
         rpmMod = 1.0f;
         knockbackMod = 1.0f;
         projSpeedMod = 1.0f;
+        chargeMaxDurMod = 1.0f;
         currModDur = 0.0f;
+        currChargeDur = 0.0f;
 
         // Set stats to base stats
         currStats = baseStats;
-        w_state = WeaponState.BASE;
+        w_mod = WeaponModifier.BASE;
+        triggerState = TriggerState.RELEASED;
 
         // On spawn be unequipped
         isActive = false;
@@ -132,14 +155,17 @@ public class WeaponClass : MonoBehaviour
     {
         ApplyModifier();
 
-        if (currModDur > 0.0f && w_state != WeaponState.BASE)
+        // Timers
+        if (currModDur > 0.0f && w_mod != WeaponModifier.BASE)
         {
             currModDur -= Time.fixedDeltaTime;
         }
         else
         {
-            w_state = WeaponState.BASE;
+            w_mod = WeaponModifier.BASE;
         }
+
+        currChargeDur += Time.fixedDeltaTime;
     }
 
     /// <summary>
@@ -149,11 +175,11 @@ public class WeaponClass : MonoBehaviour
     /// <param name="direction"></param>
     /// <param name="rotation"></param>
     /// <returns></returns>
-    RaycastHit ShootHitScan(Vector3 origin, Vector3 direction, Quaternion rotation)
+    RaycastHit ShootHitScan(Vector3 origin, Vector3 direction)
     {
         // Shoot ray into direction from origin with a maximum range
         RaycastHit hitInfo;
-        Physics.Raycast(origin, direction, out hitInfo, currStats.range);
+        Physics.Raycast(origin, direction, out hitInfo, currStats.range, layerMaskOfHitscan);
 
         return hitInfo;
     }
@@ -164,14 +190,14 @@ public class WeaponClass : MonoBehaviour
     /// <param name="origin"></param>
     /// <param name="direction"></param>
     /// <param name="rotation"></param>
-    void ShootProjectile(Vector3 origin, Vector3 direction, Quaternion rotation)
+    void ShootProjectile(Vector3 origin, Vector3 direction, Quaternion rotation, float chargeDurSpeedMod = 1.0f)
     {
         // Set the direction and offset IF there is a hitscanProjectile
         ProjectileClass p = Instantiate(currStats.projectile, origin, rotation);
         p.SetDirection(direction);
 
         // Set projectile values and owner
-        p.SetValuesOfProj((int)(currStats.dmg * dmgMod), currStats.projSpeed * projSpeedMod, currStats.knockbackStrength * knockbackMod);
+        p.SetValuesOfProj(Mathf.RoundToInt(currStats.dmg * dmgMod * chargeDurSpeedMod), currStats.criticalDmgMult, currStats.projSpeed * projSpeedMod * chargeDurSpeedMod, currStats.knockbackStrength * knockbackMod * chargeDurSpeedMod);
         p.SetOwner(ownerID);
     }
 
@@ -194,7 +220,7 @@ public class WeaponClass : MonoBehaviour
         {
             lastFireTime = Time.time;
             RaycastHit hitInfo;
-            bool hitSomething = false;
+
             // Different methods for hitscan weapons, projectile weapons
             switch (currStats.weaponType)
             {
@@ -212,31 +238,9 @@ public class WeaponClass : MonoBehaviour
                         }
                     }
 
-                    hitInfo = ShootHitScan(origin, direction, rotation);
-                    hitSomething = hitInfo.collider != null;
-
-                    // If we hit an entity, make it reduce its hp by the weapon's dmg
-                    if (hitSomething)
-                    {
-                        ApplyDamageToEnt(hitInfo, direction);
-                    }
-
-
-                    if (currStats.projectile != null)
-                    {
-                        // Get point and direction from where the visual projectile should fire (gun barrel)
-                        // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
-                        Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
-                        Vector3 offsetDir = Vector3.Normalize(origin + 50 * direction - offsetOrigin);
-                        if (hitSomething)
-                        {
-                            offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
-                        }
-                        // Test: Adding the speed of the shooter for better cosmetic projectile
-                        offsetOrigin += speed;
-                        // Shoot the projectile with the calculated direction and point with offset
-                        ShootProjectile(offsetOrigin, offsetDir, rotation);
-                    }
+                    hitInfo = ShootHitScan(origin, direction);
+                    CheckIfHit(hitInfo, direction);
+                    ShootCosmeticProj(origin, rotation, direction, hitInfo, speed);
 
                     if (currStats.recoilPattern.Count != 0)
                     {
@@ -254,33 +258,60 @@ public class WeaponClass : MonoBehaviour
                         Quaternion pelRot = CalcRecoiledRot(rotation, i);
 
                         // Shoot pellet's ray
-                        hitInfo = ShootHitScan(origin, pelDir, pelRot);
-                        hitSomething = hitInfo.collider != null;
-
-                        // If we hit an entity, make it reduce its hp by the weapon's dmg
-                        if (hitSomething)
-                        {
-                            ApplyDamageToEnt(hitInfo, pelDir);
-                        }
-
-                        // Cosmetic projectile
-                        if (currStats.projectile != null)
-                        {
-                            // Get point and direction from where the visual projectile should fire (gun barrel)
-                            // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
-                            Vector3 offsetOrigin = origin + pelRot * new Vector3(offset.x, offset.y);
-                            Vector3 offsetDir = Vector3.Normalize(origin + 50 * pelDir - offsetOrigin);
-                            if (hitInfo.collider != null)
-                            {
-                                offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
-                            }
-                            // Test: Adding the speed of the shooter for better cosmetic projectile
-                            offsetOrigin += speed;
-                            // Shoot the projectile with the calculated direction and point with offset                           
-                            ShootProjectile(offsetOrigin, offsetDir, rotation);
-                        }
+                        hitInfo = ShootHitScan(origin, pelDir);
+                        CheckIfHit(hitInfo, pelDir);
+                        ShootCosmeticProj(origin, rotation, pelDir, hitInfo, speed);
+                        
                     }
                     break;
+
+                case WeaponType.PROJECTILE:
+                    Vector3 projOffsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
+                    ShootProjectile(projOffsetOrigin, direction, rotation);
+                    break;
+            }
+        }
+    }
+
+    void ShootCosmeticProj(Vector3 origin, Quaternion rotation, Vector3 dir, RaycastHit hitInfo, Vector3 speed)
+    {
+        // Cosmetic projectile
+        if (currStats.projectile != null)
+        {
+            // Get point and direction from where the visual projectile should fire (gun barrel)
+            // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
+            Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
+            Vector3 offsetDir = Vector3.Normalize(origin + 50 * dir - offsetOrigin);
+            if (hitInfo.collider != null)
+            {
+                offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
+            }
+            // Test: Adding the speed of the shooter for better cosmetic projectile
+            offsetOrigin += speed;
+            // Shoot the projectile with the calculated direction and point with offset                           
+            ShootProjectile(offsetOrigin, offsetDir, rotation);
+        }
+    }
+
+    void CheckIfHit(RaycastHit hitInfo, Vector3 dir)
+    {
+        // If we hit an entity, make it reduce its hp by the weapon's dmg
+        if (hitInfo.collider != null)
+        {
+            if (hitInfo.collider.gameObject != GetOwner())
+            {
+                if (hitInfo.collider.gameObject.layer == LayerMask.NameToLayer("Hitbox"))
+                {
+                    try
+                    {
+                        ApplyDamageToHBox(hitInfo.collider.gameObject.GetComponent<HitboxScript>(), dir);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.Log("Caught exception: " + e);
+                        Debug.Log("Couldn't get HitboxScript from hitbox");
+                    }
+                }
             }
         }
     }
@@ -313,23 +344,25 @@ public class WeaponClass : MonoBehaviour
         return newRot;
     }
 
-    bool ApplyDamageToEnt(RaycastHit hitInfo, Vector3 dir)
+    bool ApplyDamageToHBox(HitboxScript hBox, Vector3 dir)
     {
-        if (hitInfo.collider.tag == "Entity")
+        try
         {
-            try
-            {
-                // Try to get entityclass from hit collider, then make it call its own takedamage function
-                EntityClass entityHit = hitInfo.collider.gameObject.GetComponent<EntityClass>();
-                entityHit.TakeDamageKnockback((int)(currStats.dmg * dmgMod), currStats.knockbackStrength * knockbackMod * dir);
-                entityHit.OnGettingHit(GetOwner());
-            }
-            catch (Exception e)
-            {
-                Debug.Log("Caught exception: " + e);
-                Debug.Log("Couldn't convert GameObject tagged as \"Entity\"");
-                return false;
-            }
+            // Try to get entityclass from hit collider, then make it call its own takedamage function
+            EntityClass entityHit = hBox.GetOwnerEntity();
+            hBox.ReduceHP(Mathf.RoundToInt(currStats.dmg * dmgMod));
+
+            float critMult = 1.0f;
+            if (hBox.GetIsCritical()) critMult = currStats.criticalDmgMult;
+
+            entityHit.TakeDamageKnockback(Mathf.RoundToInt(currStats.dmg * dmgMod * hBox.GetDmgMultiplier()), currStats.knockbackStrength * dir);
+            entityHit.OnGettingHit(GetOwner());
+        }
+        catch (Exception e)
+        {
+            Debug.Log("Caught exception: " + e);
+            Debug.Log("Couldn't get owner of hitbox");
+            return false;
         }
         return true;
     }
@@ -340,9 +373,9 @@ public class WeaponClass : MonoBehaviour
     /// <param name="pu">Type of consumable</param>
     public void ApplyModifier()
     {
-        switch (w_state)
+        switch (w_mod)
         {
-            case WeaponState.BASE:
+            case WeaponModifier.BASE:
                 currStats = baseStats;
                 if (circlingVFX != null)
                 {
@@ -353,7 +386,7 @@ public class WeaponClass : MonoBehaviour
                     }
                 }
                 break;
-            case WeaponState.ELECTRIC:
+            case WeaponModifier.ELECTRIC:
                 if (modifiedStats.Count > (int)PickUpClass.PickUpType.ELECTRIC)
                 {
                     currStats = modifiedStats[(int)PickUpClass.PickUpType.ELECTRIC];
@@ -395,18 +428,49 @@ public class WeaponClass : MonoBehaviour
         return currStats.fireMode;
     }
 
-    public void SetState(WeaponState newState, float duration)
+    public void SetState(WeaponModifier newState, float duration)
     {
-        w_state = newState;
+        w_mod = newState;
         switch (newState)
         {
-            case WeaponState.ELECTRIC:
+            case WeaponModifier.ELECTRIC:
                 break;
             default:
                 break;
         }
         currModDur += duration;
 
+    }
+
+    public void SetTriggerState(TriggerState st, CameraControl cam, ref Vector2 addRot, Vector3 speed = new Vector3())
+    {
+        switch (GetFiringMode())
+        {
+            case FiringMode.SEMI:
+                if (triggerState == TriggerState.RELEASED && st == TriggerState.HELD)
+                {
+                    Fire(cam, ref addRot, speed);
+                }
+                break;
+            case FiringMode.AUTO:
+                if (st == TriggerState.HELD)
+                {
+                    Fire(cam, ref addRot, speed);
+                }
+                break;
+            case FiringMode.BOW:
+                if (triggerState == TriggerState.RELEASED && st == TriggerState.HELD)
+                {
+                    currChargeDur = 0.0f;
+                }
+                else if (triggerState == TriggerState.HELD && st == TriggerState.RELEASED)
+                {
+                    Fire(cam, ref addRot, speed);
+                }
+                break;
+        }
+
+        triggerState = st;
     }
 
     public bool Equip()
