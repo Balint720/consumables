@@ -32,7 +32,7 @@ public class ProjectileClass : MonoBehaviour
     // Spawn
     private Vector3 spawnPos;               // Spawn position
     private float spawnTime;                // How long projectile has been alive
-    public float deleteTime;
+    static float deleteTime = 5.0f;
     private bool deleteBool;
     private bool isInitialized = false;
 
@@ -218,11 +218,7 @@ public class ProjectileClass : MonoBehaviour
         }
         else
         {
-            if (hitbox != null)
-            {
-                hitbox.enabled = false;
-            }
-
+            hitbox.enabled = false;
             rigBod.detectCollisions = false;
             if (t != null)
             {
@@ -235,14 +231,17 @@ public class ProjectileClass : MonoBehaviour
 
     IEnumerator Deletion()
     {
-        if (deleteBool)
+        while (true)
         {
-            Destroy(gameObject);
+            if (deleteBool)
+            {
+                Destroy(gameObject);
+            }
+            else
+            {
+                deleteBool = true;
+            }
+            yield return new WaitForSeconds(deleteTime);
         }
-        else
-        {
-            deleteBool = true;
-        }
-        yield return new WaitForSeconds(deleteTime);
     }
 }

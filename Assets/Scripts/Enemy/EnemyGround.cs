@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.ComponentModel;
 using System.Linq;
 using NUnit.Framework.Constraints;
@@ -16,7 +17,7 @@ public class EnemyGround : EntityClass
     // Movement variables                       
     NavMeshAgent nav;                                   // NavMeshAgent Unity component
     EntityClass entToChase;                             // Entity to chase in chase mode
-    
+
     public float howCloseToNavPos;                      // How close is close enough for destination in nav mesh
 
     // Navigation settings
@@ -35,13 +36,16 @@ public class EnemyGround : EntityClass
     EnemyState enState;                                 // State of enemy
 
     // Dash
-    public float dashCooldown;
-    public float dashDistance;
-    public float dashSpeedCapMultiplier;
-    public float dashAccelMultiplier;
-    float currDashCooldown;
-    bool dashReady;
-    bool doDash;
+    [Serializable]
+    public struct Dash
+    {
+        public Cooldown cd;
+        public float Distance;
+        public float SpeedCapMultiplier;
+        public float AccelMultiplier;
+    }
+    public Dash dash;
+    
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -59,8 +63,7 @@ public class EnemyGround : EntityClass
         enState = EnemyState.PATROL;
 
         // Initialize values
-        currDashCooldown = 0.0f;
-        dashReady = true;
+        dash.cd.Init();
 
         // Debug primitives
         DebugPrimitives = new GameObject[10];
@@ -74,21 +77,12 @@ public class EnemyGround : EntityClass
     // Update is called once per frame
     void Update()
     {
-
+        // Cooldowns
+        dash.cd.CallPerFrame(Time.deltaTime);
     }
 
     void FixedUpdate()
     {
-        // Decrease cooldowns
-        if (currDashCooldown > 0.0f)
-        {
-            currDashCooldown -= Time.fixedDeltaTime;
-        }
-        else
-        {
-            dashReady = true;
-        }
-
         // Do these calculations if enemy is alive (HP larger than 0)
         if (HP > 0)
         {
@@ -159,8 +153,17 @@ public class EnemyGround : EntityClass
                 horDir = Vector3.Dot(dir, right) * right;
             }
 
-            Vector3 v = (forDir + horDir).normalized;
-            moveVect.Set(v.x, doJump ? 1.0f : 0.0f, v.z);
+            // Have we rotated close enough
+            if (((rotation.y < 0.0f) ? rotation.y + 360.0f : rotation.y) - modelTrans.eulerAngles.y < maxRotationDegreesBeforeMove)
+            {
+                Vector3 v = (forDir + horDir).normalized;
+                moveVect.Set(v.x, doJump ? 1.0f : 0.0f, v.z);
+            }
+            else
+            {
+                moveVect = Vector3.zero;
+            }
+
             CalcMovementAccelerationGrounded();
             RotateModel();
             nav.nextPosition = rigBod.position;
@@ -197,16 +200,16 @@ public class EnemyGround : EntityClass
                         sign = -1;
                     }
 
-                    HSpeedCapMultiplier = dashSpeedCapMultiplier;
-                    HAccelMultiplier = dashAccelMultiplier;
+                    HSpeedCapMultiplier = dash.SpeedCapMultiplier;
+                    HAccelMultiplier = dash.AccelMultiplier;
 
-                    nav.SetDestination(rigBod.position + Quaternion.Euler(0.0f, 90.0f * sign, 0.0f) * transform.forward * dashDistance);
+                    nav.SetDestination(rigBod.position + Quaternion.Euler(0.0f, 90.0f * sign, 0.0f) * transform.forward * dash.Distance);
 
 
                     enState = EnemyState.DASH;
                     break;
                 case EnemyState.DASH:
-                    if ((nav.destination - transform.position).sqrMagnitude < howCloseToNavPos*howCloseToNavPos)
+                    if ((nav.destination - transform.position).sqrMagnitude < howCloseToNavPos * howCloseToNavPos)
                     {
                         HSpeedCapMultiplier = 1.0f;
                         HAccelMultiplier = 1.0f;
@@ -252,12 +255,10 @@ public class EnemyGround : EntityClass
                     entToChase = ent;
                 }
 
-                if (dashReady)
+                if (dash.cd.IsReady())
                 {
-                    dashReady = false;
-                    currDashCooldown = dashCooldown;
-
                     //enState = EnemyState.DASHSTART;
+                    dash.cd.UseCooldown();
                 }
 
             }

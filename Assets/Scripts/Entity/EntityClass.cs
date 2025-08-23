@@ -56,10 +56,13 @@ public class EntityClass : MonoBehaviour
     Vector3 normalOfGround;
     GameObject groundObj;
 
-    BoxCollider envColl;                            // Rigid body environment hitbox
-    Transform modelTrans;                           // Transform of model
-    Dictionary<string, Transform> modelChildTrans;  // Transforms of parts of model
-    Dictionary<string, Collider> hitboxes;          // Hitboxes
+    protected BoxCollider envColl;                              // Rigid body environment hitbox
+    protected Transform modelTrans;                             // Transform of model
+    protected Dictionary<string, Transform> modelChildTrans;    // Transforms of parts of model
+    protected Dictionary<string, Collider> hitboxes;
+
+    // Static variables
+    protected static float maxRotationDegreesBeforeMove = 20.0f;
 
     // Character movement state
     protected enum State
@@ -487,8 +490,7 @@ public class EntityClass : MonoBehaviour
 
     protected void RotateModel()
     {
-        //modelTrans.rotation = Quaternion.Euler(0, rotation.y, 0);
-        modelTrans.rotation = Quaternion.RotateTowards(modelTrans.rotation, Quaternion.Euler(0, rotation.y, 0), turnSpeedRatio*Time.fixedDeltaTime);
+        modelTrans.rotation = Quaternion.RotateTowards(modelTrans.rotation, Quaternion.Euler(0, rotation.y, 0), turnSpeedRatio * Time.fixedDeltaTime);
     }
 
     protected IEnumerator AddRotGradual(Vector2 rotToAdd, int increments)

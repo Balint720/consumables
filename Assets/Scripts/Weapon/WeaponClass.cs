@@ -72,6 +72,7 @@ public class WeaponClass : MonoBehaviour
     bool isActive;
     bool isPartPlaying;
 
+
     // Stats
     public WeaponStats baseStats;
     public List<WeaponStats> modifiedStats;
@@ -89,7 +90,7 @@ public class WeaponClass : MonoBehaviour
     public Vector3 offset;                      // Visual fired bullets are offset from here (Maybe projectiles will just straight up be offset)
 
     // Time
-    float lastFireTime;                         // Seconds that have passed since last time weapon fired
+    Cooldown canShootRPM;
 
     // Model
     public Vector3 modelOffset;
@@ -108,7 +109,6 @@ public class WeaponClass : MonoBehaviour
         }
 
         // Set intial values for multipliers
-        lastFireTime = 0.0f;
         dmgMod = 1.0f;
         recoilInd = 0;
         recoilValMod = 1.0f;
@@ -119,6 +119,11 @@ public class WeaponClass : MonoBehaviour
         chargeMaxDurMod = 1.0f;
         currModDur = 0.0f;
         currChargeDur = 0.0f;
+
+        // Cooldowns
+        canShootRPM = new Cooldown();
+        canShootRPM.timerMax = baseStats.rpm / 60.0f;
+        canShootRPM.Init();
 
         // Set stats to base stats
         currStats = baseStats;
@@ -139,11 +144,15 @@ public class WeaponClass : MonoBehaviour
         }
         isPartPlaying = true;
 
-        transform.localScale += modelScale;
+        //transform.localScale += modelScale;
     }
 
     void Update()
     {
+        // Cooldowns
+        canShootRPM.CallPerFrame(Time.deltaTime);
+        currChargeDur += Time.deltaTime;
+
         if (isActive)
         {
             transform.position += Quaternion.LookRotation(transform.forward) * modelOffset;
@@ -153,6 +162,9 @@ public class WeaponClass : MonoBehaviour
 
     void FixedUpdate()
     {
+        canShootRPM.timerMax = 60.0f / currStats.rpm;
+        canShootRPM.ModifyCooldown(rpmMod, false);
+
         ApplyModifier();
 
         // Timers
@@ -212,13 +224,9 @@ public class WeaponClass : MonoBehaviour
 
     public void Fire(Vector3 origin, Vector3 direction, Quaternion rotation, ref Vector2 addRot, Vector3 speed = new Vector3())
     {
-        // Get time in seconds since the last time the weapon fired
-        float sinceLastFire = Time.time - lastFireTime;
-
         // Only shoot if rate of fire allows it
-        if (sinceLastFire > 60.0f / (currStats.rpm * rpmMod))
+        if (canShootRPM.IsReady())
         {
-            lastFireTime = Time.time;
             RaycastHit hitInfo;
 
             // Different methods for hitscan weapons, projectile weapons
@@ -226,7 +234,7 @@ public class WeaponClass : MonoBehaviour
             {
                 case WeaponType.HITSCAN_SINGLE:
                     // Reset recoil if enough time has passed; Otherwise progress recoil pattern
-                    if (sinceLastFire >= currStats.recoilRecoveryTime)
+                    if (Time.time - canShootRPM.GetLastTimeUsed() >= currStats.recoilRecoveryTime)
                     {
                         recoilInd = 0;
                     }
@@ -261,15 +269,23 @@ public class WeaponClass : MonoBehaviour
                         hitInfo = ShootHitScan(origin, pelDir);
                         CheckIfHit(hitInfo, pelDir);
                         ShootCosmeticProj(origin, rotation, pelDir, hitInfo, speed);
-                        
+
                     }
                     break;
 
                 case WeaponType.PROJECTILE:
                     Vector3 projOffsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
-                    ShootProjectile(projOffsetOrigin, direction, rotation);
+                    float chargeMod = 1.0f;
+                    if (currStats.fireMode == FiringMode.BOW || currStats.fireMode == FiringMode.CHARGE)
+                    {
+                        chargeMod = currChargeDur / (currStats.chargeMaxDur * chargeMaxDurMod);
+                        if (chargeMod > 1.0f) chargeMod = 1.0f;
+                    }
+                    ShootProjectile(projOffsetOrigin, direction, rotation, chargeMod);
                     break;
             }
+
+            canShootRPM.UseCooldown();
         }
     }
 
@@ -288,7 +304,7 @@ public class WeaponClass : MonoBehaviour
             }
             // Test: Adding the speed of the shooter for better cosmetic projectile
             offsetOrigin += speed;
-            // Shoot the projectile with the calculated direction and point with offset                           
+            // Shoot the projectile with the calculated direction and point with offset
             ShootProjectile(offsetOrigin, offsetDir, rotation);
         }
     }

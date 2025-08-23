@@ -57,8 +57,8 @@ MonoBehaviour:
     rpm: 300
     knockbackStrength: 0
     range: 1000
-    projSpeed: -1
-    chargeMaxDur: 0
+    projSpeed: 50
+    chargeMaxDur: 2
     weaponType: 2
     fireMode: 2
     projectile: {fileID: -8204751489182697972, guid: a4b12dca7ac5df944b3a892f0bf070fb, type: 3}
