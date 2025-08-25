@@ -32,7 +32,6 @@ public class EntityClass : MonoBehaviour
     public float VAccel;
     protected float VAccelMultiplier;
     public float grav;                              // Gravity effect
-    float gravSlopeMultiplier;
     protected Vector3 knockback;                    // Knockback vector
     protected float knockbackMod;                   // Knockback multiplier
     protected Vector3 moveVect;                     // Movement input vector
@@ -53,8 +52,8 @@ public class EntityClass : MonoBehaviour
     protected float heightOfEnvColl;
     protected float radiusOfEnvColl;
     RaycastHit groundHitInfo;
-    Vector3 normalOfGround;
     GameObject groundObj;
+    Dictionary<GameObject, Vector3> normalOfCollision;
 
     protected BoxCollider envColl;                              // Rigid body environment hitbox
     protected Transform modelTrans;                             // Transform of model
@@ -63,6 +62,7 @@ public class EntityClass : MonoBehaviour
 
     // Static variables
     protected static float maxRotationDegreesBeforeMove = 20.0f;
+    static float knockbackOnDeathMult = 10.0f;
 
     // Character movement state
     protected enum State
@@ -137,8 +137,8 @@ public class EntityClass : MonoBehaviour
         VSpeedCapMultiplier = 1.0f;
         HAccelMultiplier = 1.0f;
         VAccelMultiplier = 1.0f;
-        gravSlopeMultiplier = 1.0f;
-        groundObj = null;
+        groundObj = gameObject;
+        normalOfCollision = new Dictionary<GameObject, Vector3>();
 
         // Set up rigidbody in case it is set wrong in editor
         rigBod.isKinematic = false;
@@ -263,6 +263,11 @@ public class EntityClass : MonoBehaviour
 
     }
 
+    /// <summary>
+    /// Grounded movement calculation with unity's Rigbody physics
+    /// Use this one, the other movement calculations are just kept for memory :)
+    /// </summary>
+    /// <param name="rotateForwardAndRight">Should forward and right directions be rotated around Y axis with rotation value (use for players)</param>
     protected void CalcMovementAccelerationGrounded(bool rotateForwardAndRight = false)
     {
         Vector3 forward = transform.forward;
@@ -274,17 +279,31 @@ public class EntityClass : MonoBehaviour
             right = Quaternion.Euler(0, rotation.y, 0) * transform.right;
         }
 
+        Vector3 normalOfGround = Vector3.zero;
 
         // Check if ground beneath
-        if (groundObj != null)
+        if (normalOfCollision.ContainsKey(groundObj))
         {
             movState = State.GROUNDED;
+
+            normalOfGround = normalOfCollision[groundObj];
             forward = Quaternion.AngleAxis(90.0f - Mathf.Rad2Deg * Mathf.Acos(Vector3.Dot(forward, normalOfGround)), right) * forward;
             right = Vector3.Cross(normalOfGround, forward);
         }
         else
         {
-            movState = State.AIRBORNE;
+            if (rigBod.SweepTest(new Vector3(0.0f, -1.0f, 0.0f), out RaycastHit groundCheckHitInfo, distanceOfGroundCheck))
+            {
+                movState = State.GROUNDED;
+
+                normalOfGround = groundCheckHitInfo.normal;
+                forward = Quaternion.AngleAxis(90.0f - Mathf.Rad2Deg * Mathf.Acos(Vector3.Dot(forward, normalOfGround)), right) * forward;
+                right = Vector3.Cross(normalOfGround, forward);
+            }
+            else
+            {
+                movState = State.AIRBORNE;
+            }
         }
 
         // Horizontal Movement
@@ -323,6 +342,15 @@ public class EntityClass : MonoBehaviour
                 break;
             case State.AIRBORNE:
                 break;
+        }
+
+        // Remove forces that are just going into collided objects
+        foreach (KeyValuePair<GameObject, Vector3> v in normalOfCollision)
+        {
+            Vector3 accComponent = Mathf.Clamp(Vector3.Dot(a, v.Value),Mathf.NegativeInfinity, 0.0f) * v.Value;
+            //Vector3 gravComponent = Mathf.Clamp(Vector3.Dot(currGravVec, v.Value),Mathf.NegativeInfinity, 0.0f) * v.Value;
+            a -= accComponent;
+            //currGravVec -= gravComponent;
         }
 
         // Apply movement
@@ -410,9 +438,9 @@ public class EntityClass : MonoBehaviour
     /// <summary>
     /// If entity hits 0 hp, run this function
     /// </summary>
-    protected void ZeroHP()
+    protected virtual void ZeroHP()
     {
-        rigBod.AddForce(knockback * knockbackMod, ForceMode.Force);
+        rigBod.AddForce(knockback * knockbackOnDeathMult, ForceMode.Force);
     }
 
     public virtual void OnGettingHit(GameObject hitBy)
@@ -462,16 +490,17 @@ public class EntityClass : MonoBehaviour
 
     void OnCollisionEnter(Collision cInfo)
     {
-        if (cInfo.collider.CompareTag("Environment"))
+        if (!normalOfCollision.ContainsKey(cInfo.gameObject))
         {
-            if (cInfo.GetContact(0).thisCollider == envColl)
+            if (cInfo.collider.gameObject.layer == LayerMask.NameToLayer("Obstacle") && cInfo.GetContact(0).thisCollider == envColl)
             {
                 Vector3 n = cInfo.GetContact(0).normal;
-                float angle = Mathf.Acos(Vector3.Dot(new Vector3(n.x, 0.0f, n.z), n)) * Mathf.Rad2Deg;
-                if (angle > 10.0f)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
+                normalOfCollision.Add(cInfo.gameObject, cInfo.GetContact(0).normal);
+                float angle = Vector3.SignedAngle(n, new Vector3(0.0f, 1.0f, 0.0f), Vector3.Cross(n, new Vector3(0.0f, 1.0f, 0.0f)));
+                Debug.Log(angle.ToString());
+                if (angle < 30.0f)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
                 {
                     groundObj = cInfo.gameObject;
-                    normalOfGround = n;
                 }
             }
         }
@@ -479,11 +508,29 @@ public class EntityClass : MonoBehaviour
 
     void OnCollisionExit(Collision cInfo)
     {
-        if (groundObj != null)
+        if (normalOfCollision.ContainsKey(cInfo.gameObject))
         {
-            if (cInfo.gameObject == groundObj)
+            normalOfCollision.Remove(cInfo.gameObject);
+        }
+    }
+
+    void OnCollisionStay(Collision cInfo)
+    {
+        if (normalOfCollision.ContainsKey(cInfo.gameObject))
+        {
+            Vector3 n = cInfo.GetContact(0).normal;
+            normalOfCollision[cInfo.gameObject] = n;
+            float angle = Vector3.SignedAngle(n, new Vector3(0.0f, 1.0f, 0.0f), Vector3.Cross(n, new Vector3(0.0f, 1.0f, 0.0f)));
+            if (angle < 30.0f)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
             {
-                groundObj = null;
+                groundObj = cInfo.gameObject;
+            }
+        }
+        else
+        {
+            if (cInfo.gameObject.layer == LayerMask.NameToLayer("Obstacle") && cInfo.GetContact(0).thisCollider == envColl)
+            {
+                normalOfCollision.Add(cInfo.gameObject, cInfo.GetContact(0).normal);
             }
         }
     }

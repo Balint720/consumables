@@ -182,8 +182,6 @@ public class PlayerControl : EntityClass
 
         weapon[equippedItem].transform.position = transform.position;
         weapon[equippedItem].transform.rotation = Quaternion.Euler(rotation.x, rotation.y, 0);
-
-        DebugText.text = HP.ToString();
     }
 
     void FixedUpdate()
