@@ -11,6 +11,10 @@ public class HitboxScript : MonoBehaviour
     void Start()
     {
         owner = GetComponentInParent<EntityClass>();
+        if (owner == null)
+        {
+            Debug.Log(gameObject.name + ": Couldn't find parent entity");
+        }
         if (HP <= 0)
         {
             HP = owner.maxHP;
@@ -27,7 +31,7 @@ public class HitboxScript : MonoBehaviour
         return dmgMultiplier;
     }
 
-    public bool GetIsCritical()
+    public bool IsCritical()
     {
         return critical;
     }

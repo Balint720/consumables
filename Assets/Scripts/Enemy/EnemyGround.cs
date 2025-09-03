@@ -48,9 +48,9 @@ public class EnemyGround : EntityClass
     
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    override protected void Start()
     {
-        EntityStart();
+        base.Start();
 
         // Assign components
         nav = GetComponent<NavMeshAgent>();
@@ -81,7 +81,7 @@ public class EnemyGround : EntityClass
         dash.cd.CallPerFrame(Time.deltaTime);
     }
 
-    void FixedUpdate()
+    override protected void FixedUpdate()
     {
         // Do these calculations if enemy is alive (HP larger than 0)
         if (HP > 0)

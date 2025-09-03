@@ -369,9 +369,9 @@ public class WeaponClass : MonoBehaviour
             hBox.ReduceHP(Mathf.RoundToInt(currStats.dmg * dmgMod));
 
             float critMult = 1.0f;
-            if (hBox.GetIsCritical()) critMult = currStats.criticalDmgMult;
+            if (hBox.IsCritical()) critMult = currStats.criticalDmgMult;
 
-            entityHit.TakeDamageKnockback(Mathf.RoundToInt(currStats.dmg * dmgMod * hBox.GetDmgMultiplier()), currStats.knockbackStrength * dir);
+            entityHit.TakeDamageKnockback(Mathf.RoundToInt(currStats.dmg * dmgMod * critMult * hBox.GetDmgMultiplier()), currStats.knockbackStrength * dir);
             entityHit.OnGettingHit(GetOwner());
         }
         catch (Exception e)

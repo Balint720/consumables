@@ -94,9 +94,9 @@ public class PlayerControl : EntityClass
     int equippedItem;           // Currently equipped item (includes weapons)
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    override protected void Start()
     {
-        EntityStart();
+        base.Start();
 
         // Extra tags
         AddExtraTag("Player");
@@ -184,7 +184,7 @@ public class PlayerControl : EntityClass
         weapon[equippedItem].transform.rotation = Quaternion.Euler(rotation.x, rotation.y, 0);
     }
 
-    void FixedUpdate()
+    override protected void FixedUpdate()
     {
         CalcMovementAccelerationGrounded(true);
         RotateModel();

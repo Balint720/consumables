@@ -153,9 +153,9 @@ public class ProjectileClass : MonoBehaviour
             hBox.ReduceHP(dmg);
 
             float critMult = 1.0f;
-            if (hBox.GetIsCritical()) critMult = criticalDmgMult;
+            if (hBox.IsCritical()) critMult = criticalDmgMult;
 
-            entityHit.TakeDamageKnockback(Mathf.RoundToInt(dmg * hBox.GetDmgMultiplier()), knockbackStrength * dir);
+            entityHit.TakeDamageKnockback(Mathf.RoundToInt(dmg * critMult * hBox.GetDmgMultiplier()), knockbackStrength * dir);
             entityHit.OnGettingHit(GetOwner());
         }
         catch (Exception e)

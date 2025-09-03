@@ -62,3 +62,58 @@ public class Cooldown
         }
     }
 }
+
+[Serializable]
+public class Timer
+{
+    protected float timer;
+    bool isOn = false;
+    bool isDone = false;
+
+    public bool StartTimer(float length)
+    {
+        if (!isOn)
+        {
+            timer = length;
+            isDone = false;
+            isOn = true;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public void CallPerFrame(float timeSinceLastFrame)
+    {
+        if (isOn && !isDone)
+        {
+            timer -= timeSinceLastFrame;
+            if (timer <= 0.0f) isDone = true;
+        }
+    }
+
+    public bool IsDone()
+    {
+        if (isDone && isOn)
+        {
+            isOn = false;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public void StopTimer()
+    {
+        isOn = false;
+    }
+
+    public float GetTimeLeft()
+    {
+        return timer;
+    }
+}

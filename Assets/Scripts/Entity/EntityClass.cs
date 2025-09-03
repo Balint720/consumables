@@ -75,7 +75,7 @@ public class EntityClass : MonoBehaviour
 
     GameObject SphereDebug;
 
-    protected void EntityStart()
+    protected virtual void Start()
     {
         // Instantiate, assign components
         extraTags = new List<String>();
@@ -149,6 +149,12 @@ public class EntityClass : MonoBehaviour
         SphereDebug = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         SphereDebug.GetComponent<Collider>().enabled = false;
         SphereDebug.GetComponent<Renderer>().enabled = false;
+    }
+
+    protected virtual void FixedUpdate()
+    {
+        CalcMovementAccelerationGrounded();
+        RotateModel();
     }
 
     /// <summary>
@@ -292,7 +298,7 @@ public class EntityClass : MonoBehaviour
         }
         else
         {
-            if (rigBod.SweepTest(new Vector3(0.0f, -1.0f, 0.0f), out RaycastHit groundCheckHitInfo, distanceOfGroundCheck))
+            if (rigBod.SweepTest(new Vector3(0.0f, -1.0f, 0.0f), out RaycastHit groundCheckHitInfo, distanceOfGroundCheck, QueryTriggerInteraction.Ignore))
             {
                 movState = State.GROUNDED;
 
@@ -445,7 +451,7 @@ public class EntityClass : MonoBehaviour
 
     public virtual void OnGettingHit(GameObject hitBy)
     {
-
+        
     }
 
     /// <summary>
@@ -488,7 +494,7 @@ public class EntityClass : MonoBehaviour
         return speed;
     }
 
-    void OnCollisionEnter(Collision cInfo)
+    protected virtual void OnCollisionEnter(Collision cInfo)
     {
         if (!normalOfCollision.ContainsKey(cInfo.gameObject))
         {
@@ -497,7 +503,6 @@ public class EntityClass : MonoBehaviour
                 Vector3 n = cInfo.GetContact(0).normal;
                 normalOfCollision.Add(cInfo.gameObject, cInfo.GetContact(0).normal);
                 float angle = Vector3.SignedAngle(n, new Vector3(0.0f, 1.0f, 0.0f), Vector3.Cross(n, new Vector3(0.0f, 1.0f, 0.0f)));
-                Debug.Log(angle.ToString());
                 if (angle < 30.0f)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
                 {
                     groundObj = cInfo.gameObject;
@@ -506,7 +511,7 @@ public class EntityClass : MonoBehaviour
         }
     }
 
-    void OnCollisionExit(Collision cInfo)
+    protected virtual void OnCollisionExit(Collision cInfo)
     {
         if (normalOfCollision.ContainsKey(cInfo.gameObject))
         {
@@ -514,7 +519,7 @@ public class EntityClass : MonoBehaviour
         }
     }
 
-    void OnCollisionStay(Collision cInfo)
+    protected virtual void OnCollisionStay(Collision cInfo)
     {
         if (normalOfCollision.ContainsKey(cInfo.gameObject))
         {
