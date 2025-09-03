@@ -38,9 +38,12 @@ public class EntityClass : MonoBehaviour
     public float turnSpeedRatio;                    // Turn speed ratio: how fast the character turns
     protected float turnSpeedMod;                   // Turn speed modifier
     public float distanceOfGroundCheck;
+    public float stepHeight;
+    static float rampMaxAngle = 30.0f;
 
     // Current
     protected Vector3 speed;                        // Speed vector
+    protected Vector3 accel;
     protected Vector2 rotation;                     // Rotation vector
     protected Quaternion rotationQuat;              // Rotation quaternion
 
@@ -53,7 +56,17 @@ public class EntityClass : MonoBehaviour
     protected float radiusOfEnvColl;
     RaycastHit groundHitInfo;
     GameObject groundObj;
-    Dictionary<GameObject, Vector3> normalOfCollision;
+    struct CollisionInfoStruct
+    {
+        public Vector3 point;
+        public Vector3 normal;
+        public CollisionInfoStruct(Vector3 i_point, Vector3 i_normal)
+        {
+            point = i_point;
+            normal = i_normal;
+        }
+    }
+    Dictionary<GameObject, CollisionInfoStruct> collisionInfo;
 
     protected BoxCollider envColl;                              // Rigid body environment hitbox
     protected Transform modelTrans;                             // Transform of model
@@ -72,8 +85,6 @@ public class EntityClass : MonoBehaviour
     };
 
     protected State movState;
-
-    GameObject SphereDebug;
 
     protected virtual void Start()
     {
@@ -130,6 +141,7 @@ public class EntityClass : MonoBehaviour
         moveVect = Vector3.zero;
         turnSpeedMod = 1.0f;
         speed = Vector3.zero;
+        accel = Vector3.zero;
         rotation = Vector2.zero;
         rotationQuat = Quaternion.identity;
         movState = State.AIRBORNE;
@@ -138,135 +150,19 @@ public class EntityClass : MonoBehaviour
         HAccelMultiplier = 1.0f;
         VAccelMultiplier = 1.0f;
         groundObj = gameObject;
-        normalOfCollision = new Dictionary<GameObject, Vector3>();
+        collisionInfo = new Dictionary<GameObject, CollisionInfoStruct>();
 
         // Set up rigidbody in case it is set wrong in editor
         rigBod.isKinematic = false;
         rigBod.detectCollisions = true;
         rigBod.freezeRotation = true;
         rigBod.constraints = RigidbodyConstraints.FreezeRotation;
-
-        SphereDebug = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        SphereDebug.GetComponent<Collider>().enabled = false;
-        SphereDebug.GetComponent<Renderer>().enabled = false;
     }
 
     protected virtual void FixedUpdate()
     {
         CalcMovementAccelerationGrounded();
         RotateModel();
-    }
-
-    /// <summary>
-    /// Grounded movement calculation based on MoveInput vector
-    /// </summary>
-    protected void CalcMovementGrounded(bool applyMovRot = true)
-    {
-        // Calculate speed
-        // Get current forwards and sideways speed
-        float forwardsSpeed = Vector3.Dot(rigBod.linearVelocity, transform.forward);
-        float sideSpeed = Vector3.Dot(rigBod.linearVelocity, transform.right);                      // We get these from the real speed of the character because sliding off of walls would make us shoot off them with max speed as soon as we are no longer colliding with them
-        float vertSpeed = Vector3.Dot(rigBod.linearVelocity, new Vector3(0, 1, 0));
-
-        // State on previous frame
-        State prevFrame = movState;
-
-        // Set state based on if ground beneath
-        if (Physics.Raycast(transform.position - new Vector3(0, envColl.size.y / 2, 0), transform.up * (-1), out groundHitInfo, distanceOfGroundCheck))
-        {
-            movState = State.GROUNDED;
-            SphereDebug.transform.position = groundHitInfo.point;
-        }
-        else
-        {
-            movState = State.AIRBORNE;
-        }
-
-        // Modify values based on input
-        SpeedCalc(ref forwardsSpeed, moveVect.z);
-        SpeedCalc(ref sideSpeed, moveVect.x);
-
-        // Calculate vertical speed based on state
-        switch (movState)
-        {
-            case State.GROUNDED:
-                // If we jump, set vertical speed to set value, otherwise, keep it negative to stick to the ground (ramps, slopes)
-                if (moveVect.y > 0.5)
-                {
-                    vertSpeed = VSpeedCap;
-                }
-                else
-                {
-                    vertSpeed = 0.0f;
-                    if (groundHitInfo.distance > distanceOfGroundCheck / 2.0f)
-                    {
-                        rigBod.position = new Vector3(rigBod.position.x, groundHitInfo.point.y + ((envColl.size.y + distanceOfGroundCheck) / 2.0f), rigBod.position.z);
-                    }
-                }
-                break;
-            case State.AIRBORNE:
-                /*
-                // If we were grounded the last frame, then reset vertSpeed if it was negative
-                if (prevFrame == State.GROUNDED && vertSpeed < 0.0f)
-                {
-                    vertSpeed = 0.0f;
-                }
-                */
-                // Apply gravity
-                vertSpeed -= grav * Time.fixedDeltaTime;
-                break;
-        }
-
-        // Add speeds together
-        speed = forwardsSpeed * transform.forward + sideSpeed * transform.right;
-        speed += new Vector3(0, vertSpeed, 0);
-
-        // Add knockback then reset it
-        speed += knockback * knockbackMod;
-        knockback = Vector3.zero;
-
-        if (applyMovRot)
-        {
-            ApplyMoveRot();
-        }
-
-    }
-
-    /// <summary>
-    /// Grounded movement calculation using the next position and rotation value
-    /// </summary>
-    /// <param name="nextPos">Position in world space to move to</param>
-    /// <param name="rot">Rotation of character</param>
-    /// <param name="doJump">Does the character jump?</param>
-    protected void CalcMovementGrounded(Vector3 nextPos, Quaternion rot, bool doJump = false, float distanceCap = 0.0f)
-    {
-        // Get direction from next position and current position
-        Vector3 dirWhole = nextPos - transform.position;
-        Vector3 dir = dirWhole.normalized;
-
-        // Get input values from direction and doJump variable, set rotation as well
-        moveVect.z = Vector3.Dot(dir, transform.forward);
-        moveVect.x = Vector3.Dot(dir, transform.right);
-        moveVect.y = doJump ? 1.0f : 0.0f;
-        rotationQuat = rot;
-
-        float HSpeed = new Vector2(speed.x, speed.z).magnitude;
-        float timeToStop = HSpeed / (HAccel * HAccelMultiplier);
-
-        if (dirWhole.sqrMagnitude < Math.Pow(HSpeed * timeToStop - (1 / 2) * HAccel * HAccelMultiplier * timeToStop * timeToStop, 2)
-            || dirWhole.sqrMagnitude < distanceCap * distanceCap)
-        {
-            moveVect.x = 0.0f; moveVect.z = 0.0f;
-            //GetComponent<Renderer>().material.color = Color.red;
-        }
-        else
-        {
-            //GetComponent<Renderer>().material.color = Color.blue;
-        }
-
-        // Calc movement but do not apply it, apply it with different setting
-        CalcMovementGrounded();
-
     }
 
     /// <summary>
@@ -286,13 +182,15 @@ public class EntityClass : MonoBehaviour
         }
 
         Vector3 normalOfGround = Vector3.zero;
+        Vector3 pointOfGround = Vector3.zero;
 
         // Check if ground beneath
-        if (normalOfCollision.ContainsKey(groundObj))
+        if (collisionInfo.ContainsKey(groundObj))
         {
             movState = State.GROUNDED;
 
-            normalOfGround = normalOfCollision[groundObj];
+            normalOfGround = collisionInfo[groundObj].normal;
+            pointOfGround = collisionInfo[groundObj].point;
             forward = Quaternion.AngleAxis(90.0f - Mathf.Rad2Deg * Mathf.Acos(Vector3.Dot(forward, normalOfGround)), right) * forward;
             right = Vector3.Cross(normalOfGround, forward);
         }
@@ -303,6 +201,7 @@ public class EntityClass : MonoBehaviour
                 movState = State.GROUNDED;
 
                 normalOfGround = groundCheckHitInfo.normal;
+                pointOfGround = groundCheckHitInfo.point;
                 forward = Quaternion.AngleAxis(90.0f - Mathf.Rad2Deg * Mathf.Acos(Vector3.Dot(forward, normalOfGround)), right) * forward;
                 right = Vector3.Cross(normalOfGround, forward);
             }
@@ -313,7 +212,6 @@ public class EntityClass : MonoBehaviour
         }
 
         // Horizontal Movement
-        Vector3 a = Vector3.zero;
         Vector3 inputDir = moveVect.z * forward + moveVect.x * right;
 
         float forwardsSpeed = Vector3.Dot(rigBod.linearVelocity, forward);
@@ -325,11 +223,11 @@ public class EntityClass : MonoBehaviour
 
         if (velChange.sqrMagnitude > Mathf.Pow(HAccel * HAccelMultiplier, 2))
         {
-            a = velChange.normalized * HAccel * HAccelMultiplier;
+            accel = velChange.normalized * HAccel * HAccelMultiplier;
         }
         else
         {
-            a = velChange;
+            accel = velChange;
         }
 
 
@@ -349,80 +247,38 @@ public class EntityClass : MonoBehaviour
             case State.AIRBORNE:
                 break;
         }
+        
+        DebugText.text = rigBod.linearVelocity.ToString();
+
+        // Step up on small steps
+        if (movState == State.GROUNDED)
+        {
+            if (Physics.BoxCast(rigBod.position + (rigBod.linearVelocity + accel).normalized * envColl.size.x/8.0f + Vector3.up * envColl.size.y / 2.0f, envColl.size / 2.1f, Vector3.down, out RaycastHit rhit, transform.rotation, 30.0f, LayerMask.GetMask("Obstacle"), QueryTriggerInteraction.Ignore))
+            {
+                Debug.DrawRay(rigBod.position + (rigBod.linearVelocity + accel).normalized * envColl.size.x/8.0f + Vector3.up * envColl.size.y / 2.0f, new Vector3(0.0f, -5.0f, 0.0f), Color.red, 10.0f);
+                Debug.DrawRay(rhit.point, new Vector3(0.0f, 0.2f, 0.0f), Color.blueViolet, 10.0f);
+                Vector3 d = rhit.point - pointOfGround;
+
+                if (d.y <= stepHeight && d.y > 0.05f)
+                {
+                    rigBod.MovePosition(rigBod.position + Vector3.up * d.y + new Vector3(d.x, 0.0f, d.z).normalized * 0.1f);
+                }
+            }
+        }
 
         // Remove forces that are just going into collided objects
-        foreach (KeyValuePair<GameObject, Vector3> v in normalOfCollision)
+        foreach (KeyValuePair<GameObject, CollisionInfoStruct> v in collisionInfo)
         {
-            Vector3 accComponent = Mathf.Clamp(Vector3.Dot(a, v.Value),Mathf.NegativeInfinity, 0.0f) * v.Value;
+            Vector3 accComponent = Mathf.Clamp(Vector3.Dot(accel, v.Value.normal), Mathf.NegativeInfinity, 0.0f) * v.Value.normal;
             //Vector3 gravComponent = Mathf.Clamp(Vector3.Dot(currGravVec, v.Value),Mathf.NegativeInfinity, 0.0f) * v.Value;
-            a -= accComponent;
+            accel -= accComponent;
             //currGravVec -= gravComponent;
         }
 
         // Apply movement
-        rigBod.AddForce(a, ForceMode.VelocityChange);
+        rigBod.AddForce(accel, ForceMode.VelocityChange);
         rigBod.AddForce(currGravVec, ForceMode.Acceleration);
 
-    }
-
-    /// <summary>
-    /// Calculate value to add to speed based on input value
-    /// </summary>
-    /// <param name="speedVal"></param>
-    /// <param name="inputVal"></param>
-    protected void SpeedCalc(ref float speedVal, float inputVal)
-    {
-        // If inputVal is on, then add speed using acceleration, capping it at the speed cap
-        if (Mathf.Abs(inputVal) > 0.2)
-        {
-            speedVal += inputVal * (HAccel * HAccelMultiplier * Time.fixedDeltaTime);
-            if (Mathf.Abs(speedVal) > HSpeedCap * HSpeedCapMultiplier) { speedVal = Mathf.Sign(speedVal) * HSpeedCap * HSpeedCapMultiplier; }
-        }
-        // Otherwise, reduce it until it is below 0.5, at which point set it to 0
-        else
-        {
-            if (Mathf.Abs(speedVal) > 0.5)
-            {
-                speedVal -= Mathf.Sign(speedVal) * (HAccel * HAccelMultiplier * Time.fixedDeltaTime);
-            }
-            else
-            {
-                speedVal = 0.0f;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Applies movement based on speed vector and rotation vector/quaternion
-    /// </summary>
-    /// <param name="quatSlerpRot">If true, will use rotationQuat variable and Slerp between current rotation, if false, only sets rotation to yaw of rotation vector</param>
-    protected void ApplyMoveRot(bool isPlayer = false)
-    {
-        /*
-        // Collision check
-        RaycastHit[] hitInfo;
-        hitInfo = rigBod.SweepTestAll(speed, speed.magnitude * Time.fixedDeltaTime, QueryTriggerInteraction.Ignore);
-        if (hitInfo != null)
-        {
-            for (int i = 0; i < hitInfo.Length; i++)
-            {
-                Vector3 removeVec = hitInfo[i].normal * (-1) * Vector3.Dot(speed, hitInfo[i].normal * (-1));
-                speed -= removeVec;
-            }
-        }
-        */
-
-        rigBod.linearVelocity = speed;
-
-        if (isPlayer)
-        {
-            rigBod.MoveRotation(Quaternion.Euler(0, rotation.y, 0));
-        }
-        else
-        {
-            //transform.rotation = Quaternion.Slerp(transform.rotation, rotationQuat, turnSpeedRatio * Time.fixedDeltaTime);
-            rigBod.MoveRotation(rotationQuat);
-        }
     }
 
     /// <summary>
@@ -454,41 +310,6 @@ public class EntityClass : MonoBehaviour
         
     }
 
-    /// <summary>
-    /// Add extra tags to entity
-    /// </summary>
-    /// <param name="tagToAdd">Tag to add as string</param>
-    /// <returns></returns>
-    protected int AddExtraTag(String tagToAdd)
-    {
-        if (!extraTags.Contains(tagToAdd))
-        {
-            extraTags.Add(tagToAdd);
-            return 0;
-        }
-        else
-        {
-            return -1;
-        }
-    }
-
-    /// <summary>
-    /// Check if entity has tag
-    /// </summary>
-    /// <param name="tagToCheck">Tag string to check</param>
-    /// <returns></returns>
-    public bool HasExtraTag(String tagToCheck)
-    {
-        if (extraTags.Contains(tagToCheck))
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
     public Vector3 GetSpeed()
     {
         return speed;
@@ -496,16 +317,22 @@ public class EntityClass : MonoBehaviour
 
     protected virtual void OnCollisionEnter(Collision cInfo)
     {
-        if (!normalOfCollision.ContainsKey(cInfo.gameObject))
+        ContactPoint c = cInfo.GetContact(0);
+        if (cInfo.collider.gameObject.layer == LayerMask.NameToLayer("Obstacle") && c.thisCollider == envColl)
         {
-            if (cInfo.collider.gameObject.layer == LayerMask.NameToLayer("Obstacle") && cInfo.GetContact(0).thisCollider == envColl)
+            if (!collisionInfo.ContainsKey(cInfo.gameObject))
             {
-                Vector3 n = cInfo.GetContact(0).normal;
-                normalOfCollision.Add(cInfo.gameObject, cInfo.GetContact(0).normal);
+                Vector3 n = c.normal;
+                collisionInfo.Add(cInfo.gameObject, new CollisionInfoStruct(c.point, c.normal));
+                // Check if this collision is ground
                 float angle = Vector3.SignedAngle(n, new Vector3(0.0f, 1.0f, 0.0f), Vector3.Cross(n, new Vector3(0.0f, 1.0f, 0.0f)));
-                if (angle < 30.0f)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
+                if (angle < rampMaxAngle)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
                 {
                     groundObj = cInfo.gameObject;
+                }
+                else
+                {
+                    
                 }
             }
         }
@@ -513,29 +340,29 @@ public class EntityClass : MonoBehaviour
 
     protected virtual void OnCollisionExit(Collision cInfo)
     {
-        if (normalOfCollision.ContainsKey(cInfo.gameObject))
+        if (collisionInfo.ContainsKey(cInfo.gameObject))
         {
-            normalOfCollision.Remove(cInfo.gameObject);
+            collisionInfo.Remove(cInfo.gameObject);
         }
     }
 
     protected virtual void OnCollisionStay(Collision cInfo)
     {
-        if (normalOfCollision.ContainsKey(cInfo.gameObject))
+        ContactPoint c = cInfo.GetContact(0);
+        if (collisionInfo.ContainsKey(cInfo.gameObject))
         {
-            Vector3 n = cInfo.GetContact(0).normal;
-            normalOfCollision[cInfo.gameObject] = n;
-            float angle = Vector3.SignedAngle(n, new Vector3(0.0f, 1.0f, 0.0f), Vector3.Cross(n, new Vector3(0.0f, 1.0f, 0.0f)));
-            if (angle < 30.0f)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
+            collisionInfo[cInfo.gameObject] = new CollisionInfoStruct(c.point, c.normal);
+            float angle = Vector3.SignedAngle(c.normal, new Vector3(0.0f, 1.0f, 0.0f), Vector3.Cross(c.normal, new Vector3(0.0f, 1.0f, 0.0f)));
+            if (angle < rampMaxAngle)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
             {
                 groundObj = cInfo.gameObject;
             }
         }
         else
         {
-            if (cInfo.gameObject.layer == LayerMask.NameToLayer("Obstacle") && cInfo.GetContact(0).thisCollider == envColl)
+            if (cInfo.gameObject.layer == LayerMask.NameToLayer("Obstacle") && c.thisCollider == envColl)
             {
-                normalOfCollision.Add(cInfo.gameObject, cInfo.GetContact(0).normal);
+                collisionInfo.Add(cInfo.gameObject, new CollisionInfoStruct(c.point, c.normal));
             }
         }
     }

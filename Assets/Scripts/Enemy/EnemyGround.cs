@@ -249,7 +249,7 @@ public class EnemyGround : EntityClass
             try
             {
                 EntityClass ent = hitBy.GetComponent<EntityClass>();
-                if (ent.HasExtraTag("Player"))
+                if (ent.name.Contains("Player"))
                 {
                     if (enState != EnemyState.DASHSTART && enState != EnemyState.DASH) enState = EnemyState.CHASE;
                     entToChase = ent;

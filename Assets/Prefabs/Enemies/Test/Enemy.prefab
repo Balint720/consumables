@@ -91,6 +91,59 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &2176287795812264103
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3174877675899546879}
+  - component: {fileID: 5633700855300921638}
+  m_Layer: 13
+  m_Name: DetectionRadius
+  m_TagString: Detection
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3174877675899546879
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2176287795812264103}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1837822072077387369}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!135 &5633700855300921638
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2176287795812264103}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 10
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &2878539755050310011
 GameObject:
   m_ObjectHideFlags: 0
@@ -102,7 +155,7 @@ GameObject:
   - component: {fileID: 1837822072077387369}
   - component: {fileID: 738574749826429433}
   - component: {fileID: 3583988011167753868}
-  - component: {fileID: 2982416813292351362}
+  - component: {fileID: 7480949047542421028}
   - component: {fileID: 2201117469515966518}
   m_Layer: 6
   m_Name: Enemy
@@ -125,6 +178,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2701100483871963667}
+  - {fileID: 3174877675899546879}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &738574749826429433
@@ -134,7 +188,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2878539755050310011}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 0bc8c91fbd86a1a42babc022e26c1bce, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -175,7 +229,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 112
   m_CollisionDetection: 0
---- !u!114 &2982416813292351362
+--- !u!114 &7480949047542421028
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -184,9 +238,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 2878539755050310011}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 27cb113efabb60f469bddad4a4a04a2b, type: 3}
+  m_Script: {fileID: 11500000, guid: 161757a3e05ca8b45ad8fb67b17fa5f2, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyBase
   DebugText: {fileID: 0}
   maxHP: 100
   HSpeedCap: 15
@@ -197,16 +251,10 @@ MonoBehaviour:
   grav: 20
   turnSpeedRatio: 15
   distanceOfGroundCheck: 0.5
-  DebugSphere: {fileID: 0}
-  howCloseToNavPos: 1.1
-  chaseRadius: 10
-  keepDistance: 0
-  dash:
-    cd:
-      timerMax: 5
-    Distance: 5
-    SpeedCapMultiplier: 2
-    AccelMultiplier: 2
+  stepHeight: 0.4
+  useCrowdedPatrolRoute: 0
+  maxDistFromEntity: 30
+  searchTime: 10
 --- !u!195 &2201117469515966518
 NavMeshAgent:
   m_ObjectHideFlags: 0

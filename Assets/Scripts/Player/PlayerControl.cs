@@ -98,9 +98,6 @@ public class PlayerControl : EntityClass
     {
         base.Start();
 
-        // Extra tags
-        AddExtraTag("Player");
-
         // Set the cursor locked to game screen
         UnityEngine.Cursor.lockState = CursorLockMode.Locked;
 

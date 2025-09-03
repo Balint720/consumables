@@ -265,7 +265,8 @@ MonoBehaviour:
   VAccel: 0
   grav: 30
   turnSpeedRatio: 0
-  distanceOfGroundCheck: 1
+  distanceOfGroundCheck: 0.2
+  stepHeight: 0.4
   cam: {fileID: 0}
   sens: 0.2
   inputBuffer: 0.2
