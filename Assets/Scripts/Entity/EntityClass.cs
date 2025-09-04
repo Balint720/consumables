@@ -247,8 +247,6 @@ public class EntityClass : MonoBehaviour
             case State.AIRBORNE:
                 break;
         }
-        
-        DebugText.text = rigBod.linearVelocity.ToString();
 
         // Step up on small steps
         if (movState == State.GROUNDED)
@@ -270,9 +268,9 @@ public class EntityClass : MonoBehaviour
         foreach (KeyValuePair<GameObject, CollisionInfoStruct> v in collisionInfo)
         {
             Vector3 accComponent = Mathf.Clamp(Vector3.Dot(accel, v.Value.normal), Mathf.NegativeInfinity, 0.0f) * v.Value.normal;
-            //Vector3 gravComponent = Mathf.Clamp(Vector3.Dot(currGravVec, v.Value),Mathf.NegativeInfinity, 0.0f) * v.Value;
+            Vector3 gravComponent = Mathf.Clamp(Vector3.Dot(currGravVec, v.Value.normal),Mathf.NegativeInfinity, 0.0f) * v.Value.normal;
             accel -= accComponent;
-            //currGravVec -= gravComponent;
+            currGravVec -= gravComponent;
         }
 
         // Apply movement

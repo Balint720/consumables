@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.VisualScripting;
+using Unity.VisualScripting.FullSerializer;
 using UnityEditor.SearchService;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class EnemyBase : EntityClass
 {
@@ -17,11 +20,20 @@ public class EnemyBase : EntityClass
     public bool useCrowdedPatrolRoute;
     BehaviourState b_state;
     PatrolScript patrolRoute;
+    int currPatrolPoint;                                // 0 based, points start from 1 in editor
+    int currCornerIndex;
+    NavMeshPath currPath;
     SphereCollider detectionSphere;
     public float maxDistFromEntity;
     Transform targetEntity;
     Timer searchTimer;
     public float searchTime;
+
+    // Static variables
+    static float closeEnoughDistanceFromCorner = 1.1f;
+
+    // Debug
+    GameObject[] DebugSpheres;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     override protected void Start()
@@ -35,16 +47,21 @@ public class EnemyBase : EntityClass
             {
                 detectionSphere = null;
                 Debug.Log(gameObject.name + ": Couldn't find DetectionSphere");
+                Destroy(gameObject);
             }
         }
         else
         {
             Debug.Log(gameObject.name + ": Couldn't find DetectionSphere");
+            Destroy(gameObject);
         }
 
 
         // Initialization
+        currPatrolPoint = 0;
+        currCornerIndex = 0;
         patrolRoute = null;
+        currPath = new NavMeshPath();
         b_state = BehaviourState.PATROL;
         searchTimer = new Timer();
         detectionSphere.excludeLayers = ~(LayerMask.GetMask("EnvironmentBox") | (int)detectionSphere.includeLayers);
@@ -53,6 +70,14 @@ public class EnemyBase : EntityClass
         {
             Debug.Log(gameObject.name + ": No patrol route found");
         }
+
+        DebugSpheres = new GameObject[10];
+        for (int i = 0; i < DebugSpheres.Count(); i++)
+        {
+            DebugSpheres[i] = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            DebugSpheres[i].GetComponent<Renderer>().enabled = false;
+            if (DebugSpheres[i].TryGetComponent<Collider>(out Collider c)) c.enabled = false;
+        }
     }
 
     protected virtual void Update()
@@ -60,16 +85,33 @@ public class EnemyBase : EntityClass
         // Cooldowns and timers
         searchTimer.CallPerFrame(Time.deltaTime);
 
-        //Debug.Log(b_state);
+        for (int i = 0; i < DebugSpheres.Count(); i++)
+        {
+            if (currPath != null)
+            {
+                if (currPath.corners.Count() > i)
+                {
+                    DebugSpheres[i].transform.position = currPath.corners[i] + Vector3.up * (i / 2.0f) + Vector3.up*1.0f;
+                    DebugSpheres[i].GetComponent<Renderer>().enabled = true;
+                }
+                else
+                {
+                    DebugSpheres[i].GetComponent<Renderer>().enabled = false;
+                }
+            }
+            else
+            {
+                DebugSpheres[i].GetComponent<Renderer>().enabled = false;
+            }
+        }
     }
 
     override protected void FixedUpdate()
     {
-        base.FixedUpdate();
-
         CalcNewState();
-        DebugText.text = b_state.ToString();
-        DebugText.text += "\nTimer: " + searchTimer.GetTimeLeft().ToString();
+        StateMachine();
+
+        base.FixedUpdate();
     }
 
     bool FindPatrolRoute(bool strict = true)
@@ -115,6 +157,21 @@ public class EnemyBase : EntityClass
         switch (b_state)
         {
             case BehaviourState.PATROL:
+                if (currPath == null)
+                {
+                    PatrolRouteCalc();
+                    currCornerIndex = 0;
+                    currPatrolPoint++;
+                }
+                else
+                {
+                    if (MoveToNextCorner())
+                    {
+                        PatrolRouteCalc();
+                        currCornerIndex = 0;
+                        currPatrolPoint++;
+                    }
+                }
                 break;
             case BehaviourState.SEARCH:
                 break;
@@ -164,9 +221,45 @@ public class EnemyBase : EntityClass
         }
     }
 
-    void PatrolMovement()
+    bool PatrolRouteCalc()
     {
+        if (patrolRoute != null)
+        {
+            if (patrolRoute.GetNumOfPoints() <= currPatrolPoint) { currPatrolPoint = 0; }
+            if (!patrolRoute.GetPoint(currPatrolPoint, out Transform newLoc)) { Debug.Log(gameObject.name + ": Couldn't get patrol point"); return false; }
+            if (!NavMesh.CalculatePath(rigBod.position, newLoc.position, NavMesh.AllAreas, currPath)) { Debug.Log(gameObject.name + ": Couldn't calculate path for point " + (currPatrolPoint + 1)); return false; }
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 
+    bool MoveToNextCorner()
+    {
+        if (currPath != null)
+        {
+            if (currPath.corners.Count() <= currCornerIndex) return true;                    // Path is done, we reached the final corner
+            else
+            {
+                float distanceFromCorner = (currPath.corners[currCornerIndex] - rigBod.position).sqrMagnitude;
+                float stoppingDistance = (rigBod.linearVelocity.sqrMagnitude) / Mathf.Pow(HAccel * HAccelMultiplier, 2);
+
+
+                if (distanceFromCorner <= Mathf.Pow(closeEnoughDistanceFromCorner, 2.0f)) { currCornerIndex++; return false; }
+                //else if (distanceFromCorner <= stoppingDistance) { moveVect = Vector3.zero; return false; }
+                else
+                {
+                    moveVect = (currPath.corners[currCornerIndex] - rigBod.position).normalized;
+                    rotation.y = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
+                    return false;
+                }
+                
+            }
+        }
+        else return false;
+        
     }
 
     bool CheckIfCanSeeTarget()
@@ -191,9 +284,9 @@ public class EnemyBase : EntityClass
     {
         if (other.name.Contains("Player"))
         {
-            targetEntity = other.transform;
-            if (CheckIfCanSeeTarget()) b_state = BehaviourState.COMBAT;
-            else b_state = BehaviourState.SEARCH;
+            //targetEntity = other.transform;
+            //if (CheckIfCanSeeTarget()) b_state = BehaviourState.COMBAT;
+            //else b_state = BehaviourState.SEARCH;
         }
     }
 }

@@ -42,7 +42,7 @@ public class PatrolScript : MonoBehaviour
 
     public bool GetPoint(int i, out Transform p)
     {
-        return points.TryGetValue(i, out p);
+        return points.TryGetValue(i + 1, out p);
     }
 
     public bool GetPoints(int i, out Transform[] ps)
@@ -63,6 +63,11 @@ public class PatrolScript : MonoBehaviour
             }
         }
         return true;
+    }
+
+    public int GetNumOfPoints()
+    {
+        return points.Count();
     }
 
     public bool IsUnused()
