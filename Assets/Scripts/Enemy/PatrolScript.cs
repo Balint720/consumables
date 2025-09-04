@@ -39,7 +39,10 @@ public class PatrolScript : MonoBehaviour
             }
         }
     }
-
+    public Transform GetPoint(int i)
+    {
+        return points[i+1];
+    }
     public bool GetPoint(int i, out Transform p)
     {
         return points.TryGetValue(i + 1, out p);

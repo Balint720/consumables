@@ -12,21 +12,32 @@ public class EnemyBase : EntityClass
     // States
     protected enum BehaviourState
     {
+        STAND,
         PATROL,
         SEARCH,
         COMBAT
     };
 
+    enum PathTraverseType { PAUSEATPOINTS, MOVEINSTANTLY };
+    enum MoveStates { STOPPED, MOVING, SPRINTING };
+    enum PatrolPoint { RESET, ADVANCE };
+
     public bool useCrowdedPatrolRoute;
     BehaviourState b_state;
+    PathTraverseType p_patrolpoint_state;
+    PathTraverseType p_pathcorner_state;
+    MoveStates m_state;
     PatrolScript patrolRoute;
+    
     int currPatrolPoint;                                // 0 based, points start from 1 in editor
     int currCornerIndex;
     NavMeshPath currPath;
+    Vector3 dirToCorner;
     SphereCollider detectionSphere;
     public float maxDistFromEntity;
     Transform targetEntity;
     Timer searchTimer;
+    Timer stopMoveTimer;
     public float searchTime;
 
     // Static variables
@@ -62,8 +73,13 @@ public class EnemyBase : EntityClass
         currCornerIndex = 0;
         patrolRoute = null;
         currPath = new NavMeshPath();
+        dirToCorner = Vector3.zero;
         b_state = BehaviourState.PATROL;
+        p_patrolpoint_state = PathTraverseType.PAUSEATPOINTS;
+        p_pathcorner_state = PathTraverseType.MOVEINSTANTLY;
+        m_state = MoveStates.MOVING;
         searchTimer = new Timer();
+        stopMoveTimer = new Timer();
         detectionSphere.excludeLayers = ~(LayerMask.GetMask("EnvironmentBox") | (int)detectionSphere.includeLayers);
 
         if (!FindPatrolRoute(!useCrowdedPatrolRoute))
@@ -84,15 +100,25 @@ public class EnemyBase : EntityClass
     {
         // Cooldowns and timers
         searchTimer.CallPerFrame(Time.deltaTime);
+        stopMoveTimer.CallPerFrame(Time.deltaTime);
 
+        // Debug
         for (int i = 0; i < DebugSpheres.Count(); i++)
         {
-            if (currPath != null)
+            if (currPath.status != NavMeshPathStatus.PathInvalid)
             {
                 if (currPath.corners.Count() > i)
                 {
-                    DebugSpheres[i].transform.position = currPath.corners[i] + Vector3.up * (i / 2.0f) + Vector3.up*1.0f;
+                    DebugSpheres[i].transform.position = currPath.corners[i] + Vector3.up * (i / 2.0f) + Vector3.up * 1.0f;
                     DebugSpheres[i].GetComponent<Renderer>().enabled = true;
+                    if (i < currCornerIndex)
+                    {
+                        DebugSpheres[i].GetComponent<Renderer>().material.color = Color.green;
+                    }
+                    else
+                    {
+                        DebugSpheres[i].GetComponent<Renderer>().material.color = Color.red;
+                    }
                 }
                 else
                 {
@@ -110,6 +136,7 @@ public class EnemyBase : EntityClass
     {
         CalcNewState();
         StateMachine();
+        CalcMovementInput();
 
         base.FixedUpdate();
     }
@@ -156,20 +183,35 @@ public class EnemyBase : EntityClass
     {
         switch (b_state)
         {
+            case BehaviourState.STAND:
+                break;
             case BehaviourState.PATROL:
-                if (currPath == null)
+                if (!patrolRoute) { b_state = BehaviourState.STAND; break; }
+                if (currPath.status == NavMeshPathStatus.PathInvalid)
                 {
-                    PatrolRouteCalc();
-                    currCornerIndex = 0;
-                    currPatrolPoint++;
+                    PatrolRouteCalc(PatrolPoint.RESET);
                 }
                 else
                 {
-                    if (MoveToNextCorner())
+                    if (CheckIfReachedCurrCorner())
                     {
-                        PatrolRouteCalc();
-                        currCornerIndex = 0;
-                        currPatrolPoint++;
+                        if (p_pathcorner_state == PathTraverseType.PAUSEATPOINTS)
+                        {
+                            m_state = MoveStates.STOPPED;
+                            stopMoveTimer.StopTimer();
+                            stopMoveTimer.StartTimer(0.5f);
+                        }
+                        currCornerIndex++;
+                    }
+                    if (currCornerIndex >= currPath.corners.Count())
+                    {
+                        if (p_patrolpoint_state == PathTraverseType.PAUSEATPOINTS)
+                        {
+                            m_state = MoveStates.STOPPED;
+                            stopMoveTimer.StopTimer();
+                            stopMoveTimer.StartTimer(5.0f);
+                        }
+                        PatrolRouteCalc(PatrolPoint.ADVANCE);
                     }
                 }
                 break;
@@ -201,7 +243,7 @@ public class EnemyBase : EntityClass
                 {
                     searchTimer.StartTimer(searchTime);
 
-                    if (searchTimer.IsDone() && (transform.position - targetEntity.position).sqrMagnitude > maxDistFromEntity*maxDistFromEntity) b_state = BehaviourState.PATROL;
+                    if (searchTimer.IsDone() && (transform.position - targetEntity.position).sqrMagnitude > maxDistFromEntity * maxDistFromEntity) b_state = BehaviourState.PATROL;
                 }
                 break;
             case BehaviourState.COMBAT:
@@ -219,15 +261,55 @@ public class EnemyBase : EntityClass
                 }
                 break;
         }
+
+        if (stopMoveTimer.IsDone())
+        {
+            m_state = MoveStates.MOVING;
+        }
     }
 
-    bool PatrolRouteCalc()
+    bool PatrolRouteCalc(PatrolPoint pp)
     {
         if (patrolRoute != null)
         {
-            if (patrolRoute.GetNumOfPoints() <= currPatrolPoint) { currPatrolPoint = 0; }
-            if (!patrolRoute.GetPoint(currPatrolPoint, out Transform newLoc)) { Debug.Log(gameObject.name + ": Couldn't get patrol point"); return false; }
-            if (!NavMesh.CalculatePath(rigBod.position, newLoc.position, NavMesh.AllAreas, currPath)) { Debug.Log(gameObject.name + ": Couldn't calculate path for point " + (currPatrolPoint + 1)); return false; }
+            switch (pp)
+            {
+                case PatrolPoint.RESET:
+                    int closestPoint = 0;
+                    float d = Mathf.Infinity;
+                    for (int i = 0; i < patrolRoute.GetNumOfPoints(); i++)
+                    {
+                        float currD = (patrolRoute.GetPoint(i).position - rigBod.position).sqrMagnitude;
+                        Debug.Log("Current Point: " + patrolRoute.GetPoint(i).position);
+                        Debug.Log("currD: " + currD);
+                        Debug.Log("d" + d);
+                        if (currD < d)
+                        {
+                            d = currD;
+                            closestPoint = i;
+                        }
+                    }
+                    currPatrolPoint = closestPoint;
+                    break;
+                case PatrolPoint.ADVANCE:
+                    currPatrolPoint = (currPatrolPoint + 1) % patrolRoute.GetNumOfPoints();
+                    break;
+            }
+            
+
+            if (!patrolRoute.GetPoint(currPatrolPoint, out Transform newLoc))
+            {
+                Debug.Log(gameObject.name + ": Couldn't get patrol point");
+                return false;
+            }
+
+            if (!NavMesh.CalculatePath(rigBod.position, newLoc.position, NavMesh.AllAreas, currPath))
+            {
+                Debug.Log(gameObject.name + ": Couldn't calculate path for point " + (currPatrolPoint + 1));
+                return false;
+            }
+
+            currCornerIndex = 0;
             return true;
         }
         else
@@ -236,30 +318,40 @@ public class EnemyBase : EntityClass
         }
     }
 
-    bool MoveToNextCorner()
+    bool CheckIfReachedCurrCorner()
     {
-        if (currPath != null)
+        if (currPath.status != NavMeshPathStatus.PathInvalid)
         {
-            if (currPath.corners.Count() <= currCornerIndex) return true;                    // Path is done, we reached the final corner
-            else
-            {
-                float distanceFromCorner = (currPath.corners[currCornerIndex] - rigBod.position).sqrMagnitude;
-                float stoppingDistance = (rigBod.linearVelocity.sqrMagnitude) / Mathf.Pow(HAccel * HAccelMultiplier, 2);
+            float distanceFromCornerSqr = (currPath.corners[currCornerIndex] - rigBod.position).sqrMagnitude;
 
-
-                if (distanceFromCorner <= Mathf.Pow(closeEnoughDistanceFromCorner, 2.0f)) { currCornerIndex++; return false; }
-                //else if (distanceFromCorner <= stoppingDistance) { moveVect = Vector3.zero; return false; }
-                else
-                {
-                    moveVect = (currPath.corners[currCornerIndex] - rigBod.position).normalized;
-                    rotation.y = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
-                    return false;
-                }
-                
-            }
+            if (distanceFromCornerSqr <= Mathf.Pow(closeEnoughDistanceFromCorner, 2.0f)) return true;
+            else return false;
         }
         else return false;
-        
+    }
+
+    void CalcMovementInput()
+    {
+        if (m_state != MoveStates.STOPPED)
+        {
+            switch (b_state)
+            {
+                case BehaviourState.STAND:
+                    moveVect = Vector3.zero;
+                    break;
+                case BehaviourState.PATROL:
+                    if (currPath.status != NavMeshPathStatus.PathInvalid)
+                    {
+                        moveVect = (currPath.corners[currCornerIndex] - rigBod.position).normalized;
+                    }
+                    else moveVect = Vector3.zero;
+                    break;
+            }
+        }
+        else
+        {
+            moveVect = Vector3.zero;
+        }
     }
 
     bool CheckIfCanSeeTarget()

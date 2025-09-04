@@ -255,9 +255,10 @@ public class EntityClass : MonoBehaviour
             {
                 Debug.DrawRay(rigBod.position + (rigBod.linearVelocity + accel).normalized * envColl.size.x/8.0f + Vector3.up * envColl.size.y / 2.0f, new Vector3(0.0f, -5.0f, 0.0f), Color.red, 10.0f);
                 Debug.DrawRay(rhit.point, new Vector3(0.0f, 0.2f, 0.0f), Color.blueViolet, 10.0f);
+                float angle = Vector3.SignedAngle(rhit.normal, new Vector3(0.0f, 1.0f, 0.0f), Vector3.Cross(rhit.normal, new Vector3(0.0f, 1.0f, 0.0f)));
                 Vector3 d = rhit.point - pointOfGround;
 
-                if (d.y <= stepHeight && d.y > 0.05f)
+                if (d.y <= stepHeight && d.y > 0.05f && (angle < rampMaxAngle))
                 {
                     rigBod.MovePosition(rigBod.position + Vector3.up * d.y + new Vector3(d.x, 0.0f, d.z).normalized * 0.1f);
                 }
@@ -327,10 +328,6 @@ public class EntityClass : MonoBehaviour
                 if (angle < rampMaxAngle)                                  // Max degree for it to still count as ground (can limit ramp angle this way)
                 {
                     groundObj = cInfo.gameObject;
-                }
-                else
-                {
-                    
                 }
             }
         }
