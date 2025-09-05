@@ -3,6 +3,7 @@ using UnityEngine;
 public class HitboxScript : MonoBehaviour
 {
     EntityClass owner;
+    Collider hitbox;
     public float dmgMultiplier;
     public bool critical;
     public int HP;
@@ -11,9 +12,15 @@ public class HitboxScript : MonoBehaviour
     void Start()
     {
         owner = GetComponentInParent<EntityClass>();
+        if (!TryGetComponent<Collider>(out hitbox))
+        {
+            Debug.Log(gameObject.name + ": Couldn't find hitbox collider");
+            Destroy(gameObject);
+        }
         if (owner == null)
         {
             Debug.Log(gameObject.name + ": Couldn't find parent entity");
+            Destroy(gameObject);
         }
         if (HP <= 0)
         {

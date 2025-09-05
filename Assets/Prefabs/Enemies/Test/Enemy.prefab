@@ -249,12 +249,14 @@ MonoBehaviour:
   HAccel: 40
   VAccel: 0
   grav: 20
-  turnSpeedRatio: 15
+  turnSpeedRatio: 360
   distanceOfGroundCheck: 0.5
   stepHeight: 0.4
   useCrowdedPatrolRoute: 0
   maxDistFromEntity: 30
   searchTime: 10
+  patrolPointPauseTime: 5
+  pathCornerPauseTime: 0.5
 --- !u!195 &2201117469515966518
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -415,7 +417,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -484,7 +486,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3

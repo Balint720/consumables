@@ -267,15 +267,4 @@ public class PlayerControl : EntityClass
 
         }
     }
-
-    // Getters and setters
-    public Vector2 GetRotation()
-    {
-        return new Vector2(rotation.x, rotation.y);
-    }
-
-    public void AddRotation(Vector2 rotToAdd)
-    {
-        rotation += rotToAdd;
-    }
 }

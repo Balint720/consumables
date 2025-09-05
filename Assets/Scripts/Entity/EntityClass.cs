@@ -42,8 +42,8 @@ public class EntityClass : MonoBehaviour
     static float rampMaxAngle = 30.0f;
 
     // Current
-    protected Vector3 speed;                        // Speed vector
-    protected Vector3 accel;
+    Vector3 speed;                        // Speed vector
+    Vector3 accel;
     protected Vector2 rotation;                     // Rotation vector
     protected Quaternion rotationQuat;              // Rotation quaternion
 
@@ -52,8 +52,8 @@ public class EntityClass : MonoBehaviour
 
     // Unity components
     protected Rigidbody rigBod;
-    protected float heightOfEnvColl;
-    protected float radiusOfEnvColl;
+    float heightOfEnvColl;
+    float radiusOfEnvColl;
     RaycastHit groundHitInfo;
     GameObject groundObj;
     struct CollisionInfoStruct
@@ -68,14 +68,14 @@ public class EntityClass : MonoBehaviour
     }
     Dictionary<GameObject, CollisionInfoStruct> collisionInfo;
 
-    protected BoxCollider envColl;                              // Rigid body environment hitbox
+    BoxCollider envColl;                              // Rigid body environment hitbox
     protected Transform modelTrans;                             // Transform of model
     protected Dictionary<string, Transform> modelChildTrans;    // Transforms of parts of model
     protected Dictionary<string, Collider> hitboxes;
 
     // Static variables
-    protected static float maxRotationDegreesBeforeMove = 20.0f;
-    static float knockbackOnDeathMult = 10.0f;
+    protected static float maxRotationDegreesBeforeMove = 10.0f;
+    protected static float knockbackOnDeathMult = 10.0f;
 
     // Character movement state
     protected enum State
@@ -85,6 +85,9 @@ public class EntityClass : MonoBehaviour
     };
 
     protected State movState;
+
+    // Debug
+    Vector3 nextPhysicsFramePosition;
 
     protected virtual void Start()
     {
@@ -249,18 +252,17 @@ public class EntityClass : MonoBehaviour
         }
 
         // Step up on small steps
-        if (movState == State.GROUNDED)
+        if (movState == State.GROUNDED && collisionInfo.ContainsKey(groundObj))
         {
-            if (Physics.BoxCast(rigBod.position + (rigBod.linearVelocity + accel).normalized * envColl.size.x/8.0f + Vector3.up * envColl.size.y / 2.0f, envColl.size / 2.1f, Vector3.down, out RaycastHit rhit, transform.rotation, 30.0f, LayerMask.GetMask("Obstacle"), QueryTriggerInteraction.Ignore))
+            nextPhysicsFramePosition = rigBod.position + (rigBod.linearVelocity + accel) * Time.fixedDeltaTime;
+            if (Physics.BoxCast(nextPhysicsFramePosition + Vector3.up * 2.0f, envColl.size / 2.1f, Vector3.down, out RaycastHit rhit, transform.rotation, 30.0f, LayerMask.GetMask("Obstacle"), QueryTriggerInteraction.Ignore))
             {
-                Debug.DrawRay(rigBod.position + (rigBod.linearVelocity + accel).normalized * envColl.size.x/8.0f + Vector3.up * envColl.size.y / 2.0f, new Vector3(0.0f, -5.0f, 0.0f), Color.red, 10.0f);
-                Debug.DrawRay(rhit.point, new Vector3(0.0f, 0.2f, 0.0f), Color.blueViolet, 10.0f);
                 float angle = Vector3.SignedAngle(rhit.normal, new Vector3(0.0f, 1.0f, 0.0f), Vector3.Cross(rhit.normal, new Vector3(0.0f, 1.0f, 0.0f)));
                 Vector3 d = rhit.point - pointOfGround;
 
-                if (d.y <= stepHeight && d.y > 0.05f && (angle < rampMaxAngle))
+                if (d.y <= stepHeight && d.y > 0.03f && (angle < rampMaxAngle))
                 {
-                    rigBod.MovePosition(rigBod.position + Vector3.up * d.y + new Vector3(d.x, 0.0f, d.z).normalized * 0.1f);
+                    rigBod.MovePosition(rigBod.position + Vector3.up * (d.y * 1.1f));
                 }
             }
         }
@@ -269,7 +271,7 @@ public class EntityClass : MonoBehaviour
         foreach (KeyValuePair<GameObject, CollisionInfoStruct> v in collisionInfo)
         {
             Vector3 accComponent = Mathf.Clamp(Vector3.Dot(accel, v.Value.normal), Mathf.NegativeInfinity, 0.0f) * v.Value.normal;
-            Vector3 gravComponent = Mathf.Clamp(Vector3.Dot(currGravVec, v.Value.normal),Mathf.NegativeInfinity, 0.0f) * v.Value.normal;
+            Vector3 gravComponent = Mathf.Clamp(Vector3.Dot(currGravVec, v.Value.normal), Mathf.NegativeInfinity, 0.0f) * v.Value.normal;
             accel -= accComponent;
             currGravVec -= gravComponent;
         }
@@ -365,6 +367,17 @@ public class EntityClass : MonoBehaviour
     protected void RotateModel()
     {
         modelTrans.rotation = Quaternion.RotateTowards(modelTrans.rotation, Quaternion.Euler(0, rotation.y, 0), turnSpeedRatio * Time.fixedDeltaTime);
+    }
+
+    // Getters and setters
+    public Vector2 GetRotation()
+    {
+        return new Vector2(rotation.x, rotation.y);
+    }
+
+    public void AddRotation(Vector2 rotToAdd)
+    {
+        rotation += rotToAdd;
     }
 
     protected IEnumerator AddRotGradual(Vector2 rotToAdd, int increments)
