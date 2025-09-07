@@ -17,6 +17,16 @@ public class EntityClass : MonoBehaviour
 {
     public TextMeshProUGUI DebugText;
 
+    // Type of movement used by entity
+    public enum MoveType
+    {
+        WALK,
+        WALKWITHJUMP,
+        FLY
+    }
+
+    public MoveType moveType;
+
     // Stats
     public int maxHP;                               // Maximum HP
     protected int HP;                               // Current HP
@@ -31,6 +41,10 @@ public class EntityClass : MonoBehaviour
     protected float HAccelMultiplier;
     public float VAccel;
     protected float VAccelMultiplier;
+    public float FlySpeedCap;
+    protected float FlySpeedCapMultiplier;
+    public float FlyAccel;
+    protected float FlyAccelMultiplier;
     public float grav;                              // Gravity effect
     protected Vector3 knockback;                    // Knockback vector
     protected float knockbackMod;                   // Knockback multiplier
@@ -152,6 +166,8 @@ public class EntityClass : MonoBehaviour
         VSpeedCapMultiplier = 1.0f;
         HAccelMultiplier = 1.0f;
         VAccelMultiplier = 1.0f;
+        FlySpeedCapMultiplier = 1.0f;
+        FlyAccelMultiplier = 1.0f;
         groundObj = gameObject;
         collisionInfo = new Dictionary<GameObject, CollisionInfoStruct>();
 
@@ -164,7 +180,16 @@ public class EntityClass : MonoBehaviour
 
     protected virtual void FixedUpdate()
     {
-        CalcMovementAccelerationGrounded();
+        switch (moveType)
+        {
+            case MoveType.WALK:
+            case MoveType.WALKWITHJUMP:
+                CalcMovementAccelerationGrounded();
+                break;
+            case MoveType.FLY:
+                CalcMovementAccelerationFlying();
+                break;
+        }
         RotateModel();
     }
 
@@ -239,8 +264,7 @@ public class EntityClass : MonoBehaviour
         switch (movState)
         {
             case State.GROUNDED:
-
-                if (moveVect.y > 0.2)
+                if (moveVect.y > 0.2 && moveType == MoveType.WALKWITHJUMP)
                 {
                     rigBod.linearVelocity = new Vector3(rigBod.linearVelocity.x, VSpeedCap * VSpeedCapMultiplier, rigBod.linearVelocity.z);
                 }
@@ -279,7 +303,51 @@ public class EntityClass : MonoBehaviour
         // Apply movement
         rigBod.AddForce(accel, ForceMode.VelocityChange);
         rigBod.AddForce(currGravVec, ForceMode.Acceleration);
+    }
 
+    /// <summary>
+    /// Grounded movement calculation with unity's Rigbody physics
+    /// Use this one, the other movement calculations are just kept for memory :)
+    /// </summary>
+    /// <param name="rotateForwardAndRight">Should forward and right directions be rotated around Y axis with rotation value (use for players)</param>
+    protected void CalcMovementAccelerationFlying(bool rotateForwardAndRight = false)
+    {
+        movState = State.AIRBORNE;
+
+        Vector3 forward = transform.forward;
+        Vector3 right = transform.right;
+        Vector3 up = transform.up;
+
+        if (rotateForwardAndRight)
+        {
+            forward = Quaternion.Euler(0, rotation.y, 0) * transform.forward;
+            right = Quaternion.Euler(0, rotation.y, 0) * transform.right;
+        }
+
+        // Movement
+        Vector3 inputDir = moveVect.z * forward + moveVect.x * right + moveVect.y * up;
+
+        Vector3 velChange = inputDir * FlySpeedCap * FlySpeedCapMultiplier - rigBod.linearVelocity;
+        DebugText.text = "InputDir: " + inputDir.ToString();
+
+        if (velChange.sqrMagnitude > Mathf.Pow(FlyAccel * FlyAccelMultiplier, 2))
+        {
+            accel = velChange.normalized * FlyAccel * FlyAccelMultiplier;
+        }
+        else
+        {
+            accel = velChange;
+        }
+
+        // Remove forces that are just going into collided objects
+        foreach (KeyValuePair<GameObject, CollisionInfoStruct> v in collisionInfo)
+        {
+            Vector3 vComponent = Mathf.Clamp(Vector3.Dot(accel, v.Value.normal), Mathf.NegativeInfinity, 0.0f) * v.Value.normal;
+            accel -= vComponent;
+        }
+
+        // Apply movement
+        rigBod.AddForce(accel, ForceMode.VelocityChange);
     }
 
     /// <summary>

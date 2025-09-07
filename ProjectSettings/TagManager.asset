@@ -9,6 +9,7 @@ TagManager:
   - Environment
   - Route
   - Detection
+  - JumpHover
   layers:
   - Default
   - TransparentFX
@@ -24,7 +25,7 @@ TagManager:
   - Trigger
   - Path
   - Detection
-  - 
+  - LinkTrigger
   - 
   - 
   - 

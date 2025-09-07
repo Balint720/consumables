@@ -183,7 +183,16 @@ public class PlayerControl : EntityClass
 
     override protected void FixedUpdate()
     {
-        CalcMovementAccelerationGrounded(true);
+        switch (moveType)
+        {
+            case MoveType.WALK:
+            case MoveType.WALKWITHJUMP:
+                CalcMovementAccelerationGrounded(true);
+                break;
+            case MoveType.FLY:
+                CalcMovementAccelerationFlying(true);
+                break;
+        }
         RotateModel();
         DoAttack();
     }
