@@ -24,14 +24,13 @@ public class EnemyBase : EntityClass
 
     enum PathTraverseType { PAUSEATPOINTS, MOVEINSTANTLY };
     enum MoveStates { STOPPED, MOVING, SPRINTING, HOVERING, JUMPING };
-    enum PatrolPoint { RESET, ADVANCE };
+    enum LinkTraverseDir { FORWARD = 1, BACKWARDS = -1 };
     enum RotateBeforeMove { WAITFORROTATE, MOVEANYWAY };
     enum LinkState { NONE, JUMPHOVER };
 
     public bool useCrowdedPatrolRoute;
     BehaviourState b_state;
-    PathTraverseType p_patrolpoint_state;
-    PathTraverseType p_pathcorner_state;
+    PathTraverseType p_state;
     MoveStates m_state;
     RotateBeforeMove r_state;
     LinkState l_state;
@@ -43,6 +42,7 @@ public class EnemyBase : EntityClass
     int currCornerIndex;
     List<Vector3> offMeshLinkPoints;
     int currOffMeshLinkPoint;
+    LinkTraverseDir linkDir;
     Vector3 dirToCorner;
     SphereCollider detectionSphere;
     public float maxDistFromEntity;
@@ -95,8 +95,7 @@ public class EnemyBase : EntityClass
         currOffMeshLinkPoint = 0;
         dirToCorner = Vector3.zero;
         b_state = BehaviourState.PATROL;
-        p_patrolpoint_state = PathTraverseType.PAUSEATPOINTS;
-        p_pathcorner_state = PathTraverseType.MOVEINSTANTLY;
+        p_state = PathTraverseType.PAUSEATPOINTS;
         m_state = MoveStates.MOVING;
         r_state = RotateBeforeMove.WAITFORROTATE;
         l_state = LinkState.NONE;
@@ -163,8 +162,6 @@ public class EnemyBase : EntityClass
 
         base.FixedUpdate();
         navMeshAgent.nextPosition = rigBod.position;
-
-        DebugText.text = moveVect.ToString();
     }
 
     bool FindPatrolRoute(bool strict = true)
@@ -216,14 +213,16 @@ public class EnemyBase : EntityClass
                         break;
                     case BehaviourState.PATROL:
                         if (!patrolRoute) { b_state = BehaviourState.STAND; break; }
-                        if (navMeshAgent.hasPath)
+                        if (!navMeshAgent.hasPath)
                         {
-                            CheckPathProgress(patrolPointPauseTime);
-                        }
-                        else
-                        {
+                            if (p_state == PathTraverseType.PAUSEATPOINTS)
+                            {
+                                m_state = MoveStates.STOPPED;
+                                stopMoveTimer.StopTimer();
+                                stopMoveTimer.StartTimer(patrolPointPauseTime);
+                            }
                             Debug.Log("Got here");
-                            PatrolRouteCalc(PatrolPoint.ADVANCE);
+                            PatrolRouteCalc();
                         }
                         break;
                     case BehaviourState.SEARCH:
@@ -244,35 +243,50 @@ public class EnemyBase : EntityClass
                 }
                 break;
             case LinkState.JUMPHOVER:
-                float distanceFromCornerSqr = (offMeshLinkPoints[currOffMeshLinkPoint] - rigBod.position).sqrMagnitude;
+                int closestPoint = currOffMeshLinkPoint;
+                float distanceFromCornerSqr = Mathf.Infinity;
+                switch (linkDir)
+                {
+                    case LinkTraverseDir.FORWARD:
+                        for (int i = currOffMeshLinkPoint; i < offMeshLinkPoints.Count(); i++)
+                        {
+                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (rigBod.position - Vector3.up * (envColl.size.y / 2))).sqrMagnitude;
+                            if (distanceFromCornerSqr > d)
+                            {
+                                distanceFromCornerSqr = d;
+                                closestPoint = i;
+                            }
+                        }
+                        break;
+                    case LinkTraverseDir.BACKWARDS:
+                        for (int i = currOffMeshLinkPoint; i >= 0; i--)
+                        {
+                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (rigBod.position - Vector3.up * (envColl.size.y / 2))).sqrMagnitude;
+                            if (distanceFromCornerSqr > d)
+                            {
+                                distanceFromCornerSqr = d;
+                                closestPoint = i;
+                            }
+                        }
+                        break;
+                }
+
+                currOffMeshLinkPoint = closestPoint;
+
+                DebugText.text = currOffMeshLinkPoint.ToString();
 
                 if (distanceFromCornerSqr <= Mathf.Pow(closeEnoughDistanceFromCorner, 2.0f))
                 {
-                    currOffMeshLinkPoint++;
+                    currOffMeshLinkPoint += (int)linkDir;
                 }
 
-                if (currOffMeshLinkPoint < offMeshLinkPoints.Count())
+                if (currOffMeshLinkPoint >= offMeshLinkPoints.Count() || currOffMeshLinkPoint < 0)
                 {
                     l_state = LinkState.NONE;
-                    m_state = MoveStates.MOVING;
                 }
                 break;
         }
         
-    }
-
-    void CheckPathProgress(float pathEndPauseTime)
-    {
-        if (CheckIfReachedCurrCorner())
-        {
-            if (p_pathcorner_state == PathTraverseType.PAUSEATPOINTS)
-            {
-                m_state = MoveStates.STOPPED;
-                stopMoveTimer.StopTimer();
-                stopMoveTimer.StartTimer(pathEndPauseTime);
-            }
-            currCornerIndex++;
-        }
     }
 
     void CalcNewState()
@@ -346,22 +360,27 @@ public class EnemyBase : EntityClass
             try
             {
                 int numOfChildren = navMeshAgent.currentOffMeshLinkData.owner.GetComponent<Transform>().childCount;
-                Debug.Log(numOfChildren);
+                offMeshLinkPoints.Clear();
+                
                 for (int i = 0; i < numOfChildren; i++)
                 {
                     Transform t = navMeshAgent.currentOffMeshLinkData.owner.GetComponent<Transform>().GetChild(i);
-                    Debug.Log(t.position);
                     offMeshLinkPoints.Add(t.position);
-                    Debug.Log("Point: " + t.position);
                 }
 
+                float startPosDist = (offMeshLinkPoints[0] - rigBod.position).sqrMagnitude;
+                float endPosDist = (offMeshLinkPoints[offMeshLinkPoints.Count()-1] - rigBod.position).sqrMagnitude;
+
+                if (startPosDist <= endPosDist) { linkDir = LinkTraverseDir.FORWARD; currOffMeshLinkPoint = 0; }
+                else { linkDir = LinkTraverseDir.BACKWARDS; currOffMeshLinkPoint = offMeshLinkPoints.Count() - 1; }
+
                 l_state = LinkState.JUMPHOVER;
-                currOffMeshLinkPoint = 0;
+                
 
                 m_state = MoveStates.HOVERING;
                 navMeshAgent.CompleteOffMeshLink();
 
-                Debug.Log("Starting offmeshlink");
+                Debug.Log("Starting NavMeshLink");
             }
             catch (Exception e)
             {
@@ -369,10 +388,14 @@ public class EnemyBase : EntityClass
                 Debug.Log("Couldn't get transforms from offmeshlink");
                 Destroy(gameObject);
             }
-        }     
+        }
+        else if (l_state == LinkState.NONE)
+        {
+            m_state = MoveStates.MOVING;
+        }
     }
 
-    bool PatrolRouteCalc(PatrolPoint pp)
+    bool PatrolRouteCalc()
     {
         if (patrolRoute != null)
         {
@@ -392,18 +415,6 @@ public class EnemyBase : EntityClass
         }
     }
 
-    bool CheckIfReachedCurrCorner()
-    {
-        if (navMeshAgent.hasPath && currCornerIndex < navMeshAgent.path.corners.Count())
-        {
-            float distanceFromCornerSqr = (navMeshAgent.path.corners[currCornerIndex] - rigBod.position).sqrMagnitude;
-
-            if (distanceFromCornerSqr <= Mathf.Pow(closeEnoughDistanceFromCorner, 2.0f)) return true;
-            else return false;
-        }
-        else return false;
-    }
-
     void CalcMovementInput()
     {
         switch (l_state)
@@ -417,34 +428,24 @@ public class EnemyBase : EntityClass
                     case MoveStates.MOVING:
                     case MoveStates.SPRINTING:
                     case MoveStates.HOVERING:
-                        switch (b_state)
+                        moveVect = (navMeshAgent.steeringTarget - rigBod.position).normalized;
+                        rotation.x = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
+                        rotation.y = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
+                        if (r_state == RotateBeforeMove.WAITFORROTATE)
                         {
-                            case BehaviourState.STAND:
+                            if (Mathf.Abs(((rotation.y < 0.0f) ? rotation.y + 360.0f : rotation.y) - modelTrans.eulerAngles.y) > maxRotationDegreesBeforeMove)
+                            {
                                 moveVect = Vector3.zero;
-                                break;
-                            case BehaviourState.PATROL:
-                            case BehaviourState.SEARCH:
-                            case BehaviourState.COMBAT:
-                                moveVect = (navMeshAgent.steeringTarget - rigBod.position).normalized;
-                                rotation.x = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
-                                rotation.y = Vector3.SignedAngle(transform.forward, moveVect, new Vector3(0.0f, 1.0f, 0.0f));
-                                if (r_state == RotateBeforeMove.WAITFORROTATE)
-                                {
-                                    if (Mathf.Abs(((rotation.y < 0.0f) ? rotation.y + 360.0f : rotation.y) - modelTrans.eulerAngles.y) > maxRotationDegreesBeforeMove)
-                                    {
-                                        moveVect = Vector3.zero;
-                                    }
-                                }
-                                else moveVect = Vector3.zero;
-                                break;
+                            }
                         }
+                        else moveVect = Vector3.zero;
                         break;
                 }
                 break;
             case LinkState.JUMPHOVER:
-                moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - rigBod.position).normalized;
+                moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - (rigBod.position - Vector3.up * (envColl.size.y/2))).normalized;
                 rotation.x = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
-                rotation.y = Vector3.SignedAngle(transform.forward, moveVect, new Vector3(0.0f, 1.0f, 0.0f));
+                rotation.y = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
                 if (r_state == RotateBeforeMove.WAITFORROTATE)
                 {
                     if (Mathf.Abs(((rotation.y < 0.0f) ? rotation.y + 360.0f : rotation.y) - modelTrans.eulerAngles.y) > maxRotationDegreesBeforeMove)

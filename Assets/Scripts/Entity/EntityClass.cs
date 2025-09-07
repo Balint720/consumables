@@ -66,8 +66,6 @@ public class EntityClass : MonoBehaviour
 
     // Unity components
     protected Rigidbody rigBod;
-    float heightOfEnvColl;
-    float radiusOfEnvColl;
     RaycastHit groundHitInfo;
     GameObject groundObj;
     struct CollisionInfoStruct
@@ -82,7 +80,7 @@ public class EntityClass : MonoBehaviour
     }
     Dictionary<GameObject, CollisionInfoStruct> collisionInfo;
 
-    BoxCollider envColl;                              // Rigid body environment hitbox
+    protected BoxCollider envColl;                              // Rigid body environment hitbox
     protected Transform modelTrans;                             // Transform of model
     protected Dictionary<string, Transform> modelChildTrans;    // Transforms of parts of model
     protected Dictionary<string, Collider> hitboxes;
@@ -328,7 +326,6 @@ public class EntityClass : MonoBehaviour
         Vector3 inputDir = moveVect.z * forward + moveVect.x * right + moveVect.y * up;
 
         Vector3 velChange = inputDir * FlySpeedCap * FlySpeedCapMultiplier - rigBod.linearVelocity;
-        DebugText.text = "InputDir: " + inputDir.ToString();
 
         if (velChange.sqrMagnitude > Mathf.Pow(FlyAccel * FlyAccelMultiplier, 2))
         {
@@ -345,6 +342,9 @@ public class EntityClass : MonoBehaviour
             Vector3 vComponent = Mathf.Clamp(Vector3.Dot(accel, v.Value.normal), Mathf.NegativeInfinity, 0.0f) * v.Value.normal;
             accel -= vComponent;
         }
+
+        DebugText.text += "\n Inputdir: " + inputDir;
+        DebugText.text += "\n VelChange: " + velChange;
 
         // Apply movement
         rigBod.AddForce(accel, ForceMode.VelocityChange);
