@@ -28,7 +28,7 @@ public class EnemyBase : EntityClass
     enum RotateBeforeMove { WAITFORROTATE, MOVEANYWAY };
     enum LinkState { NONE, JUMPHOVER };
 
-    public bool useCrowdedPatrolRoute;
+    [SerializeField] bool useCrowdedPatrolRoute;
     BehaviourState b_state;
     PathTraverseType p_state;
     MoveStates m_state;
@@ -39,21 +39,20 @@ public class EnemyBase : EntityClass
     NavMeshAgent navMeshAgent;
 
     int currPatrolPoint;                                // 0 based, points start from 1 in editor
-    int currCornerIndex;
     List<Vector3> offMeshLinkPoints;
     int currOffMeshLinkPoint;
     LinkTraverseDir linkDir;
     Vector3 dirToCorner;
     SphereCollider detectionSphere;
-    public float maxDistFromEntity;
+    [SerializeField] float maxDistFromEntity;
     Transform targetEntity;
     Timer searchTimer;
     Timer stopMoveTimer;
-    public float searchTime;
+    [SerializeField] float searchTime;
     static float searchUpdateDestTime = 10.0f;
     static float combatUpdateDestTime = 0.25f;
-    public float patrolPointPauseTime;
-    public float pathCornerPauseTime;
+    [SerializeField] float patrolPointPauseTime;
+    [SerializeField] float pathCornerPauseTime;
     IEnumerator pathCalcSearch;
     bool pathCalcSearchRunning;
     IEnumerator pathCalcCombat;
@@ -89,7 +88,6 @@ public class EnemyBase : EntityClass
 
         // Initialization
         currPatrolPoint = 0;
-        currCornerIndex = 0;
         patrolRoute = null;
         offMeshLinkPoints = new List<Vector3>();
         currOffMeshLinkPoint = 0;
@@ -161,7 +159,7 @@ public class EnemyBase : EntityClass
         CalcMovementInput();
 
         base.FixedUpdate();
-        navMeshAgent.nextPosition = rigBod.position;
+        navMeshAgent.nextPosition = RigBodPos;
     }
 
     bool FindPatrolRoute(bool strict = true)
@@ -250,7 +248,7 @@ public class EnemyBase : EntityClass
                     case LinkTraverseDir.FORWARD:
                         for (int i = currOffMeshLinkPoint; i < offMeshLinkPoints.Count(); i++)
                         {
-                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (rigBod.position - Vector3.up * (envColl.size.y / 2))).sqrMagnitude;
+                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (RigBodPos - Vector3.up * (EnvCollHeight / 2))).sqrMagnitude;
                             if (distanceFromCornerSqr > d)
                             {
                                 distanceFromCornerSqr = d;
@@ -261,7 +259,7 @@ public class EnemyBase : EntityClass
                     case LinkTraverseDir.BACKWARDS:
                         for (int i = currOffMeshLinkPoint; i >= 0; i--)
                         {
-                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (rigBod.position - Vector3.up * (envColl.size.y / 2))).sqrMagnitude;
+                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (RigBodPos - Vector3.up * (EnvCollHeight / 2))).sqrMagnitude;
                             if (distanceFromCornerSqr > d)
                             {
                                 distanceFromCornerSqr = d;
@@ -296,12 +294,12 @@ public class EnemyBase : EntityClass
             case BehaviourState.PATROL:
                 if (targetEntity != null)
                 {
-                    if (CheckIfCanSeeTarget(rigBod.position)) b_state = BehaviourState.COMBAT;
+                    if (CheckIfCanSeeTarget(RigBodPos)) b_state = BehaviourState.COMBAT;
                     else b_state = BehaviourState.SEARCH;
                 }
                 break;
             case BehaviourState.SEARCH:
-                if (CheckIfCanSeeTarget(rigBod.position))
+                if (CheckIfCanSeeTarget(RigBodPos))
                 {
                     b_state = BehaviourState.COMBAT;
                     searchTimer.StopTimer();
@@ -314,7 +312,7 @@ public class EnemyBase : EntityClass
                 }
                 break;
             case BehaviourState.COMBAT:
-                if (!CheckIfCanSeeTarget(rigBod.position))
+                if (!CheckIfCanSeeTarget(RigBodPos))
                 {
                     searchTimer.StartTimer(searchTime / 2.0f);
                     if (searchTimer.IsDone())
@@ -341,11 +339,11 @@ public class EnemyBase : EntityClass
                 break;
             case MoveStates.MOVING:
                 moveType = MoveType.WALK;
-                HSpeedCapMultiplier = 1.0f;
+                hSpeedCapMultiplier = 1.0f;
                 break;
             case MoveStates.SPRINTING:
                 moveType = MoveType.WALK;
-                HSpeedCapMultiplier = 1.3f;
+                hSpeedCapMultiplier = 1.3f;
                 break;
             case MoveStates.HOVERING:
                 moveType = MoveType.FLY;
@@ -368,8 +366,8 @@ public class EnemyBase : EntityClass
                     offMeshLinkPoints.Add(t.position);
                 }
 
-                float startPosDist = (offMeshLinkPoints[0] - rigBod.position).sqrMagnitude;
-                float endPosDist = (offMeshLinkPoints[offMeshLinkPoints.Count()-1] - rigBod.position).sqrMagnitude;
+                float startPosDist = (offMeshLinkPoints[0] - RigBodPos).sqrMagnitude;
+                float endPosDist = (offMeshLinkPoints[offMeshLinkPoints.Count()-1] - RigBodPos).sqrMagnitude;
 
                 if (startPosDist <= endPosDist) { linkDir = LinkTraverseDir.FORWARD; currOffMeshLinkPoint = 0; }
                 else { linkDir = LinkTraverseDir.BACKWARDS; currOffMeshLinkPoint = offMeshLinkPoints.Count() - 1; }
@@ -405,7 +403,6 @@ public class EnemyBase : EntityClass
                 return false;
             }
             navMeshAgent.SetDestination(newLoc.position);
-            currCornerIndex = 0;
             currPatrolPoint = ++currPatrolPoint % patrolRoute.GetNumOfPoints();
             return true;
         }
@@ -428,12 +425,12 @@ public class EnemyBase : EntityClass
                     case MoveStates.MOVING:
                     case MoveStates.SPRINTING:
                     case MoveStates.HOVERING:
-                        moveVect = (navMeshAgent.steeringTarget - rigBod.position).normalized;
-                        rotation.x = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
-                        rotation.y = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
+                        moveVect = (navMeshAgent.steeringTarget - RigBodPos).normalized;
+                        PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
+                        YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
                         if (r_state == RotateBeforeMove.WAITFORROTATE)
                         {
-                            if (Mathf.Abs(((rotation.y < 0.0f) ? rotation.y + 360.0f : rotation.y) - modelTrans.eulerAngles.y) > maxRotationDegreesBeforeMove)
+                            if (Mathf.Abs(((YawY < 0.0f) ? YawY + 360.0f : YawY) - modelTrans.eulerAngles.y) > maxRotationDegreesBeforeMove)
                             {
                                 moveVect = Vector3.zero;
                             }
@@ -443,12 +440,12 @@ public class EnemyBase : EntityClass
                 }
                 break;
             case LinkState.JUMPHOVER:
-                moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - (rigBod.position - Vector3.up * (envColl.size.y/2))).normalized;
-                rotation.x = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
-                rotation.y = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
+                moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - (RigBodPos - Vector3.up * (EnvCollHeight/2))).normalized;
+                PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
+                YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
                 if (r_state == RotateBeforeMove.WAITFORROTATE)
                 {
-                    if (Mathf.Abs(((rotation.y < 0.0f) ? rotation.y + 360.0f : rotation.y) - modelTrans.eulerAngles.y) > maxRotationDegreesBeforeMove)
+                    if (Mathf.Abs(((YawY < 0.0f) ? YawY + 360.0f : YawY) - modelTrans.eulerAngles.y) > maxRotationDegreesBeforeMove)
                     {
                         moveVect = Vector3.zero;
                     }
@@ -481,7 +478,7 @@ public class EnemyBase : EntityClass
         if (other.name.Contains("Player"))
         {
             targetEntity = other.transform;
-            if (CheckIfCanSeeTarget(rigBod.position)) b_state = BehaviourState.COMBAT;
+            if (CheckIfCanSeeTarget(RigBodPos)) b_state = BehaviourState.COMBAT;
             else b_state = BehaviourState.SEARCH;
         }
     }
@@ -513,7 +510,6 @@ public class EnemyBase : EntityClass
             if (NavMesh.SamplePosition(targetEntity.position, out NavMeshHit nHit, maxDistFromEntity, NavMesh.AllAreas))
             {
                 navMeshAgent.SetDestination(nHit.position);
-                currCornerIndex = 0;
             }
             yield return new WaitForSeconds(delayBetweenCalls);
         }

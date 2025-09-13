@@ -10,7 +10,7 @@ using UnityEngine.UIElements;
 
 class Consumable
 {
-    public static float consumableDuration = 30.0f;                // How long consumable items last
+    public static float consumableDuration = 30.0f;
     int count;
     PickUpClass.PickUpType type;
 
@@ -66,8 +66,7 @@ class Consumable
 public class PlayerControl : EntityClass
 {
     // Camera
-    public CameraControl cam;
-    const float lookVerticalDegLimit = 89.0f;
+    [SerializeField] CameraControl cam;
 
     // Input Variables
     InputAction moveInput;              // Movement (forward backwards sideways)
@@ -75,18 +74,16 @@ public class PlayerControl : EntityClass
     InputAction lookInput;              // Looking
     List<InputAction> invInput;         // Inventory
     InputAction attackInput;            // Shooting
-    bool attackPressed;                 // Used for checking if attack button is held down or just pressed (probably an in engine way to check, this is cooked)
-    float attackBuf;                    // How long attack has been held down
 
     Vector2 lookVect;                   // Cursor vector
     Vector2 addedRotation;              // Rotation from other factors than input
 
     // Player settings
-    public float sens = 0.4f;           // Sensitivity of mouse movement
-    public float inputBuffer = 0.2f;    // How many seconds are buffered inputs considered pressed
+    [SerializeField] float sens = 0.4f;           // Sensitivity of mouse movement
+    [SerializeField] float inputBuffer = 0.2f;    // How many seconds are buffered inputs considered pressed
 
     // Inv
-    public List<WeaponClass> weaponFabs;// List of WeaponClass objects that the player has
+    [SerializeField] List<WeaponClass> weaponFabs;// List of WeaponClass objects that the player has
     List<WeaponClass> weapon;
 
     List<Consumable> consumable;               // Number of a consumable the player has in their inventory
@@ -165,11 +162,8 @@ public class PlayerControl : EntityClass
         lookVect = lookInput.ReadValue<Vector2>();
 
         // Looking
-        rotation += new Vector2(-lookVect.y, lookVect.x) * sens;                            // Calculate rotation from input as degrees in a 2D vector
-        if (Math.Abs(rotation.x) > lookVerticalDegLimit)
-        {
-            rotation.x = lookVerticalDegLimit * Math.Sign(rotation.x);
-        }
+        PitchX += -lookVect.y * sens;
+        YawY += lookVect.x * sens;
 
         if (addedRotation != Vector2.zero)                                                  // Added rotation is stuff like recoil, camera shake, etc
         {
@@ -178,7 +172,7 @@ public class PlayerControl : EntityClass
         }
 
         weapon[equippedItem].transform.position = transform.position;
-        weapon[equippedItem].transform.rotation = Quaternion.Euler(rotation.x, rotation.y, 0);
+        weapon[equippedItem].transform.rotation = Quaternion.Euler(PitchX, YawY, 0);
     }
 
     override protected void FixedUpdate()
@@ -225,11 +219,11 @@ public class PlayerControl : EntityClass
     {
         if (attackInput.IsPressed())
         {
-            weapon[equippedItem].SetTriggerState(WeaponClass.TriggerState.HELD, cam, ref addedRotation, rigBod.linearVelocity * Time.fixedDeltaTime);
+            weapon[equippedItem].SetTriggerState(WeaponClass.TriggerState.HELD, cam, ref addedRotation, RigBodVel * Time.fixedDeltaTime);
         }
         else
         {
-            weapon[equippedItem].SetTriggerState(WeaponClass.TriggerState.RELEASED, cam, ref addedRotation, rigBod.linearVelocity * Time.fixedDeltaTime);
+            weapon[equippedItem].SetTriggerState(WeaponClass.TriggerState.RELEASED, cam, ref addedRotation, RigBodVel * Time.fixedDeltaTime);
         }
     }
 

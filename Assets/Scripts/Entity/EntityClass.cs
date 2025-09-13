@@ -2,8 +2,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using NUnit.Framework.Internal;
 using TMPro;
+using Unity.Properties;
 using Unity.VisualScripting;
 using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
@@ -13,59 +15,92 @@ using UnityEngine.UIElements;
 
 // Entity
 // Class to be inherited
-public class EntityClass : MonoBehaviour
+public abstract class EntityClass : MonoBehaviour
 {
     public TextMeshProUGUI DebugText;
 
     // Type of movement used by entity
-    public enum MoveType
+    protected enum MoveType
     {
         WALK,
         WALKWITHJUMP,
         FLY
     }
 
-    public MoveType moveType;
+    protected MoveType moveType;
 
     // Stats
-    public int maxHP;                               // Maximum HP
-    protected int HP;                               // Current HP
+    int maxHP;
+    public int MaxHP
+    {
+        get => maxHP;
+        protected set => maxHP = value > 0 ? value : 1;
+    }
+    int currHP;
+    public int CurrHP
+    {
+        get => currHP;
+        protected set => currHP = value > 0 ? value : 0;
+    }
 
     // Movement Variables
-    public float HSpeedCap;                         // Horizontal speed cap
-    protected float HSpeedCapMultiplier;
-    public float VSpeedCap;                         // Vertical speed cap (Jump height if grounded)
-    protected float VSpeedCapMultiplier;
-    public float fallSpeedCap;
-    public float HAccel;                            // Horizontal acceleration
-    protected float HAccelMultiplier;
-    public float VAccel;
-    protected float VAccelMultiplier;
-    public float FlySpeedCap;
-    protected float FlySpeedCapMultiplier;
-    public float FlyAccel;
-    protected float FlyAccelMultiplier;
-    public float grav;                              // Gravity effect
-    protected Vector3 knockback;                    // Knockback vector
-    protected float knockbackMod;                   // Knockback multiplier
-    protected Vector3 moveVect;                     // Movement input vector
-    public float turnSpeedRatio;                    // Turn speed ratio: how fast the character turns
-    protected float turnSpeedMod;                   // Turn speed modifier
-    public float distanceOfGroundCheck;
-    public float stepHeight;
-    static float rampMaxAngle = 30.0f;
+    [SerializeField] protected float hSpeedCap;
+    protected float hSpeedCapMultiplier;
+    [SerializeField] protected float vSpeedCap;
+    protected float vSpeedCapMultiplier;
+    [SerializeField] protected float fallSpeedCap;
+    [SerializeField] protected float hAccel;
+    protected float hAccelMultiplier;
+    [SerializeField] protected float vAccel;
+    protected float vAccelMultiplier;
+    [SerializeField] protected float flySpeedCap;
+    protected float flySpeedCapMultiplier;
+    [SerializeField] protected float flyAccel;
+    protected float flyAccelMultiplier;
+    [SerializeField] protected float grav;
+    protected Vector3 knockback;
+    protected float knockbackMod;
+    protected Vector3 moveVect;
+    [SerializeField] protected float turnSpeedRatio;
+    protected float turnSpeedMod;
+    float distanceOfGroundCheck;
+    float stepHeight;
+    static float rampMaxAngle { get => 30.0f; }
 
     // Current
-    Vector3 speed;                        // Speed vector
+    Vector3 speed;
     Vector3 accel;
-    protected Vector2 rotation;                     // Rotation vector
-    protected Quaternion rotationQuat;              // Rotation quaternion
+    Vector3 rotation;
+    static float LookVerticalDegLimit { get => 89.0f; }
+    public float PitchX
+    {
+        get => rotation.x;
+        protected set => rotation.x = Mathf.Abs(value) < LookVerticalDegLimit ? value : Mathf.Sign(value) * LookVerticalDegLimit;
+    }
+    public float YawY
+    {
+        get => rotation.y;
+        protected set => rotation.y = value;
+    }
+    public float RollZ
+    {
+        get => rotation.z;
+        protected set => rotation.z = value;
+    }
 
     // Extra tags
     protected List<String> extraTags;
 
     // Unity components
-    protected Rigidbody rigBod;
+    Rigidbody rigBod;
+    protected Vector3 RigBodVel
+    {
+        get => rigBod.linearVelocity;
+    }
+    protected Vector3 RigBodPos
+    {
+        get => rigBod.position;
+    }
     RaycastHit groundHitInfo;
     GameObject groundObj;
     struct CollisionInfoStruct
@@ -80,7 +115,11 @@ public class EntityClass : MonoBehaviour
     }
     Dictionary<GameObject, CollisionInfoStruct> collisionInfo;
 
-    protected BoxCollider envColl;                              // Rigid body environment hitbox
+    BoxCollider envColl;                                        // Rigid body environment hitbox
+    public float EnvCollHeight
+    {
+        get => envColl.size.y;
+    }
     protected Transform modelTrans;                             // Transform of model
     protected Dictionary<string, Transform> modelChildTrans;    // Transforms of parts of model
     protected Dictionary<string, Collider> hitboxes;
@@ -150,7 +189,7 @@ public class EntityClass : MonoBehaviour
         }
 
         // Set variables
-        HP = maxHP;
+        currHP = maxHP;
         knockback = Vector3.zero;
         knockbackMod = 1.0f;
         moveVect = Vector3.zero;
@@ -158,14 +197,13 @@ public class EntityClass : MonoBehaviour
         speed = Vector3.zero;
         accel = Vector3.zero;
         rotation = Vector2.zero;
-        rotationQuat = Quaternion.identity;
         movState = State.AIRBORNE;
-        HSpeedCapMultiplier = 1.0f;
-        VSpeedCapMultiplier = 1.0f;
-        HAccelMultiplier = 1.0f;
-        VAccelMultiplier = 1.0f;
-        FlySpeedCapMultiplier = 1.0f;
-        FlyAccelMultiplier = 1.0f;
+        hSpeedCapMultiplier = 1.0f;
+        vSpeedCapMultiplier = 1.0f;
+        hAccelMultiplier = 1.0f;
+        vAccelMultiplier = 1.0f;
+        flySpeedCapMultiplier = 1.0f;
+        flyAccelMultiplier = 1.0f;
         groundObj = gameObject;
         collisionInfo = new Dictionary<GameObject, CollisionInfoStruct>();
 
@@ -245,11 +283,11 @@ public class EntityClass : MonoBehaviour
 
         Vector3 horSpeed = forwardsSpeed * forward + sideSpeed * right;
 
-        Vector3 velChange = inputDir * HSpeedCap * HSpeedCapMultiplier - horSpeed;
+        Vector3 velChange = inputDir * hSpeedCap * hSpeedCapMultiplier - horSpeed;
 
-        if (velChange.sqrMagnitude > Mathf.Pow(HAccel * HAccelMultiplier, 2))
+        if (velChange.sqrMagnitude > Mathf.Pow(hAccel * hAccelMultiplier, 2))
         {
-            accel = velChange.normalized * HAccel * HAccelMultiplier;
+            accel = velChange.normalized * hAccel * hAccelMultiplier;
         }
         else
         {
@@ -264,7 +302,7 @@ public class EntityClass : MonoBehaviour
             case State.GROUNDED:
                 if (moveVect.y > 0.2 && moveType == MoveType.WALKWITHJUMP)
                 {
-                    rigBod.linearVelocity = new Vector3(rigBod.linearVelocity.x, VSpeedCap * VSpeedCapMultiplier, rigBod.linearVelocity.z);
+                    rigBod.linearVelocity = new Vector3(rigBod.linearVelocity.x, vSpeedCap * vSpeedCapMultiplier, rigBod.linearVelocity.z);
                 }
 
                 currGravVec = normalOfGround * (-1) * grav;
@@ -325,11 +363,11 @@ public class EntityClass : MonoBehaviour
         // Movement
         Vector3 inputDir = moveVect.z * forward + moveVect.x * right + moveVect.y * up;
 
-        Vector3 velChange = inputDir * FlySpeedCap * FlySpeedCapMultiplier - rigBod.linearVelocity;
+        Vector3 velChange = inputDir * flySpeedCap * flySpeedCapMultiplier - rigBod.linearVelocity;
 
-        if (velChange.sqrMagnitude > Mathf.Pow(FlyAccel * FlyAccelMultiplier, 2))
+        if (velChange.sqrMagnitude > Mathf.Pow(flyAccel * flyAccelMultiplier, 2))
         {
-            accel = velChange.normalized * FlyAccel * FlyAccelMultiplier;
+            accel = velChange.normalized * flyAccel * flyAccelMultiplier;
         }
         else
         {
@@ -357,10 +395,10 @@ public class EntityClass : MonoBehaviour
     /// <param name="knock"></param>
     public void TakeDamageKnockback(int dmg, Vector3 knock)
     {
-        HP -= dmg;
+        currHP -= dmg;
         knockback = knock;
 
-        if (HP <= 0)
+        if (currHP <= 0)
         {
             ZeroHP();
         }
@@ -437,20 +475,9 @@ public class EntityClass : MonoBehaviour
         modelTrans.rotation = Quaternion.RotateTowards(modelTrans.rotation, Quaternion.Euler(0, rotation.y, 0), turnSpeedRatio * Time.fixedDeltaTime);
     }
 
-    // Getters and setters
-    public Vector2 GetRotation()
+    protected IEnumerator AddRotGradual(Vector3 rotToAdd, int increments)
     {
-        return new Vector2(rotation.x, rotation.y);
-    }
-
-    public void AddRotation(Vector2 rotToAdd)
-    {
-        rotation += rotToAdd;
-    }
-
-    protected IEnumerator AddRotGradual(Vector2 rotToAdd, int increments)
-    {
-        Vector2 incVec = rotToAdd / increments;
+        Vector3 incVec = rotToAdd / increments;
         for (int i = 0; i < increments; i++)
         {
             rotation += incVec;

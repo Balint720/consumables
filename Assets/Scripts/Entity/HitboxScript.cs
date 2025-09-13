@@ -24,7 +24,7 @@ public class HitboxScript : MonoBehaviour
         }
         if (HP <= 0)
         {
-            HP = owner.maxHP;
+            HP = owner.MaxHP;
         }
     }
 
