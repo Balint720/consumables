@@ -59,7 +59,7 @@ public class EnemyBase : EntityClass
     bool pathCalcCombatRunning;
 
     // Static variables
-    static float closeEnoughDistanceFromCorner = 1.1f;
+    [SerializeField] float closeEnoughDistanceFromCorner = 1.1f;
 
     // Debug
     GameObject[] DebugSpheres;
@@ -108,6 +108,7 @@ public class EnemyBase : EntityClass
         navMeshAgent = GetComponent<NavMeshAgent>();
         navMeshAgent.updatePosition = false;
         navMeshAgent.updateRotation = false;
+        navMeshAgent.stoppingDistance = closeEnoughDistanceFromCorner;
         if (!FindPatrolRoute(!useCrowdedPatrolRoute))
         {
             Debug.Log(gameObject.name + ": No patrol route found");
@@ -248,7 +249,7 @@ public class EnemyBase : EntityClass
                     case LinkTraverseDir.FORWARD:
                         for (int i = currOffMeshLinkPoint; i < offMeshLinkPoints.Count(); i++)
                         {
-                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (RigBodPos - Vector3.up * (EnvCollHeight / 2))).sqrMagnitude;
+                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (RigBodPos)).sqrMagnitude;
                             if (distanceFromCornerSqr > d)
                             {
                                 distanceFromCornerSqr = d;
@@ -259,7 +260,7 @@ public class EnemyBase : EntityClass
                     case LinkTraverseDir.BACKWARDS:
                         for (int i = currOffMeshLinkPoint; i >= 0; i--)
                         {
-                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (RigBodPos - Vector3.up * (EnvCollHeight / 2))).sqrMagnitude;
+                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (RigBodPos)).sqrMagnitude;
                             if (distanceFromCornerSqr > d)
                             {
                                 distanceFromCornerSqr = d;
@@ -269,9 +270,9 @@ public class EnemyBase : EntityClass
                         break;
                 }
 
-                currOffMeshLinkPoint = closestPoint;
+                DebugText.text = distanceFromCornerSqr.ToString();
 
-                DebugText.text = currOffMeshLinkPoint.ToString();
+                currOffMeshLinkPoint = closestPoint;
 
                 if (distanceFromCornerSqr <= Mathf.Pow(closeEnoughDistanceFromCorner, 2.0f))
                 {
@@ -440,7 +441,7 @@ public class EnemyBase : EntityClass
                 }
                 break;
             case LinkState.JUMPHOVER:
-                moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - (RigBodPos - Vector3.up * (EnvCollHeight/2))).normalized;
+                moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - RigBodPos).normalized;
                 PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
                 YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
                 if (r_state == RotateBeforeMove.WAITFORROTATE)

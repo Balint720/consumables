@@ -10,6 +10,7 @@ TagManager:
   - Route
   - Detection
   - JumpHover
+  - Model
   layers:
   - Default
   - TransparentFX

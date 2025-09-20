@@ -105,6 +105,9 @@ public class PlayerControl : EntityClass
         attackInput = InputSystem.actions.FindAction("Attack");
         invInput = new List<InputAction>();
 
+        // Initial movement state
+        moveType = MoveType.WALKWITHJUMP;
+
         int i = 0;
         while (true)
         {

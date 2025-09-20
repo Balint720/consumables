@@ -64,7 +64,7 @@ public abstract class EntityClass : MonoBehaviour
     [SerializeField] protected float turnSpeedRatio;
     protected float turnSpeedMod;
     float distanceOfGroundCheck;
-    float stepHeight;
+    [SerializeField] float stepHeight = 1.0f;
     static float rampMaxAngle { get => 30.0f; }
 
     // Current
@@ -167,15 +167,18 @@ public abstract class EntityClass : MonoBehaviour
 
         for (int i = 0; i < transes.Count(); i++)
         {
-            if (transes[i].name != name)
+            if (transes[i].CompareTag("Model"))
             {
-                if (transes[i].name == "Model")
+                if (transes[i].name != name)
                 {
-                    modelTrans = transes[i];
-                }
-                else if (transes[i].IsChildOf(modelTrans))
-                {
-                    modelChildTrans.Add(transes[i].name, transes[i]);
+                    if (transes[i].name == "Model")
+                    {
+                        modelTrans = transes[i];
+                    }
+                    else if (transes[i].IsChildOf(modelTrans))
+                    {
+                        modelChildTrans.Add(transes[i].name, transes[i]);
+                    }
                 }
             }
         }
@@ -227,6 +230,8 @@ public abstract class EntityClass : MonoBehaviour
                 break;
         }
         RotateModel();
+
+        Debug.DrawRay(RigBodPos, moveVect, Color.red, 0.5f);
     }
 
     /// <summary>
@@ -380,9 +385,6 @@ public abstract class EntityClass : MonoBehaviour
             Vector3 vComponent = Mathf.Clamp(Vector3.Dot(accel, v.Value.normal), Mathf.NegativeInfinity, 0.0f) * v.Value.normal;
             accel -= vComponent;
         }
-
-        DebugText.text += "\n Inputdir: " + inputDir;
-        DebugText.text += "\n VelChange: " + velChange;
 
         // Apply movement
         rigBod.AddForce(accel, ForceMode.VelocityChange);
