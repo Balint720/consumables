@@ -33,7 +33,7 @@ public class RollerBodyWheel : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Vector3 dir = script.GetSpeed().normalized;
+        Vector3 dir = script.RigBodVel.normalized;
         dir = new Vector3(dir.x, 0.0f, dir.z);
         float angle = (float)Math.Acos(Vector3.Dot(new Vector3(0.0f, 0.0f, 1.0f), dir));
 

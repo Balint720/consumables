@@ -68,7 +68,6 @@ public abstract class EntityClass : MonoBehaviour
     static float rampMaxAngle { get => 30.0f; }
 
     // Current
-    Vector3 speed;
     Vector3 accel;
     Vector3 rotation;
     static float LookVerticalDegLimit { get => 89.0f; }
@@ -93,7 +92,7 @@ public abstract class EntityClass : MonoBehaviour
 
     // Unity components
     Rigidbody rigBod;
-    protected Vector3 RigBodVel
+    public Vector3 RigBodVel
     {
         get => rigBod.linearVelocity;
     }
@@ -197,7 +196,6 @@ public abstract class EntityClass : MonoBehaviour
         knockbackMod = 1.0f;
         moveVect = Vector3.zero;
         turnSpeedMod = 1.0f;
-        speed = Vector3.zero;
         accel = Vector3.zero;
         rotation = Vector2.zero;
         movState = State.AIRBORNE;
@@ -230,8 +228,6 @@ public abstract class EntityClass : MonoBehaviour
                 break;
         }
         RotateModel();
-
-        Debug.DrawRay(RigBodPos, moveVect, Color.red, 0.5f);
     }
 
     /// <summary>
@@ -417,11 +413,6 @@ public abstract class EntityClass : MonoBehaviour
     public virtual void OnGettingHit(GameObject hitBy)
     {
         
-    }
-
-    public Vector3 GetSpeed()
-    {
-        return speed;
     }
 
     protected virtual void OnCollisionEnter(Collision cInfo)

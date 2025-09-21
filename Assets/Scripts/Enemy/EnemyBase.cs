@@ -42,7 +42,7 @@ public class EnemyBase : EntityClass
     List<Vector3> offMeshLinkPoints;
     int currOffMeshLinkPoint;
     LinkTraverseDir linkDir;
-    Vector3 dirToCorner;
+    Transform bottom;
     SphereCollider detectionSphere;
     [SerializeField] float maxDistFromEntity;
     Transform targetEntity;
@@ -57,9 +57,7 @@ public class EnemyBase : EntityClass
     bool pathCalcSearchRunning;
     IEnumerator pathCalcCombat;
     bool pathCalcCombatRunning;
-
-    // Static variables
-    [SerializeField] float closeEnoughDistanceFromCorner = 1.1f;
+    float closeEnoughDistanceFromCorner = 1.1f;
 
     // Debug
     GameObject[] DebugSpheres;
@@ -91,7 +89,19 @@ public class EnemyBase : EntityClass
         patrolRoute = null;
         offMeshLinkPoints = new List<Vector3>();
         currOffMeshLinkPoint = 0;
-        dirToCorner = Vector3.zero;
+        foreach (Transform t in GetComponentsInChildren<Transform>())
+        {
+            if (t.CompareTag("Bottom"))
+            {
+                bottom = t;
+                break;
+            }
+        }
+        if (bottom == null)
+        {
+            Debug.Log(gameObject.name + " has no bottom: using transform pos");
+            bottom = transform;
+        }
         b_state = BehaviourState.PATROL;
         p_state = PathTraverseType.PAUSEATPOINTS;
         m_state = MoveStates.MOVING;
@@ -212,6 +222,13 @@ public class EnemyBase : EntityClass
                         break;
                     case BehaviourState.PATROL:
                         if (!patrolRoute) { b_state = BehaviourState.STAND; break; }
+                        if (navMeshAgent.hasPath)
+                        {
+                            if (navMeshAgent.remainingDistance < navMeshAgent.stoppingDistance)
+                            {
+                                navMeshAgent.ResetPath();
+                            }
+                        }
                         if (!navMeshAgent.hasPath)
                         {
                             if (p_state == PathTraverseType.PAUSEATPOINTS)
@@ -223,6 +240,8 @@ public class EnemyBase : EntityClass
                             Debug.Log("Got here");
                             PatrolRouteCalc();
                         }
+                        DebugText.text = "Remaining distance: " + navMeshAgent.remainingDistance.ToString() + '\n';
+                        DebugText.text += "Stopping distance: " + navMeshAgent.stoppingDistance.ToString();
                         break;
                     case BehaviourState.SEARCH:
                         if (!targetEntity)
@@ -249,7 +268,7 @@ public class EnemyBase : EntityClass
                     case LinkTraverseDir.FORWARD:
                         for (int i = currOffMeshLinkPoint; i < offMeshLinkPoints.Count(); i++)
                         {
-                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (RigBodPos)).sqrMagnitude;
+                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (bottom.position)).sqrMagnitude;
                             if (distanceFromCornerSqr > d)
                             {
                                 distanceFromCornerSqr = d;
@@ -260,7 +279,7 @@ public class EnemyBase : EntityClass
                     case LinkTraverseDir.BACKWARDS:
                         for (int i = currOffMeshLinkPoint; i >= 0; i--)
                         {
-                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (RigBodPos)).sqrMagnitude;
+                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (bottom.position)).sqrMagnitude;
                             if (distanceFromCornerSqr > d)
                             {
                                 distanceFromCornerSqr = d;
@@ -269,8 +288,8 @@ public class EnemyBase : EntityClass
                         }
                         break;
                 }
-
-                DebugText.text = distanceFromCornerSqr.ToString();
+                DebugText.text = "Remaining distance: " + distanceFromCornerSqr.ToString() + '\n';
+                DebugText.text += "Stopping distance: " + navMeshAgent.stoppingDistance.ToString();
 
                 currOffMeshLinkPoint = closestPoint;
 
@@ -367,8 +386,8 @@ public class EnemyBase : EntityClass
                     offMeshLinkPoints.Add(t.position);
                 }
 
-                float startPosDist = (offMeshLinkPoints[0] - RigBodPos).sqrMagnitude;
-                float endPosDist = (offMeshLinkPoints[offMeshLinkPoints.Count()-1] - RigBodPos).sqrMagnitude;
+                float startPosDist = (offMeshLinkPoints[0] - bottom.position).sqrMagnitude;
+                float endPosDist = (offMeshLinkPoints[offMeshLinkPoints.Count()-1] - bottom.position).sqrMagnitude;
 
                 if (startPosDist <= endPosDist) { linkDir = LinkTraverseDir.FORWARD; currOffMeshLinkPoint = 0; }
                 else { linkDir = LinkTraverseDir.BACKWARDS; currOffMeshLinkPoint = offMeshLinkPoints.Count() - 1; }
@@ -426,7 +445,7 @@ public class EnemyBase : EntityClass
                     case MoveStates.MOVING:
                     case MoveStates.SPRINTING:
                     case MoveStates.HOVERING:
-                        moveVect = (navMeshAgent.steeringTarget - RigBodPos).normalized;
+                        moveVect = (navMeshAgent.steeringTarget - bottom.position).normalized;
                         PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
                         YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
                         if (r_state == RotateBeforeMove.WAITFORROTATE)
@@ -441,7 +460,7 @@ public class EnemyBase : EntityClass
                 }
                 break;
             case LinkState.JUMPHOVER:
-                moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - RigBodPos).normalized;
+                moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - bottom.position).normalized;
                 PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
                 YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
                 if (r_state == RotateBeforeMove.WAITFORROTATE)
