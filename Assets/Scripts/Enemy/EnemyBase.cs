@@ -59,6 +59,9 @@ public class EnemyBase : EntityClass
     bool pathCalcCombatRunning;
     float closeEnoughDistanceFromCorner = 1.1f;
 
+    // Animation
+    Animator animator;
+
     // Debug
     GameObject[] DebugSpheres;
 
@@ -67,6 +70,7 @@ public class EnemyBase : EntityClass
     {
         base.Start();
 
+        // Detection collider init
         detectionSphere = GetComponentInChildren<SphereCollider>();
         if (detectionSphere != null)
         {
@@ -74,17 +78,20 @@ public class EnemyBase : EntityClass
             {
                 detectionSphere = null;
                 Debug.Log(gameObject.name + ": Couldn't find DetectionSphere");
-                Destroy(gameObject);
+            }
+            else
+            {
+                detectionSphere.excludeLayers = ~(LayerMask.GetMask("EnvironmentBox") | (int)detectionSphere.includeLayers);
             }
         }
         else
         {
             Debug.Log(gameObject.name + ": Couldn't find DetectionSphere");
-            Destroy(gameObject);
         }
 
 
         // Initialization
+        // Patrol and off mesh traverse variables
         currPatrolPoint = 0;
         patrolRoute = null;
         offMeshLinkPoints = new List<Vector3>();
@@ -102,28 +109,46 @@ public class EnemyBase : EntityClass
             Debug.Log(gameObject.name + " has no bottom: using transform pos");
             bottom = transform;
         }
+
+        // States
         b_state = BehaviourState.PATROL;
         p_state = PathTraverseType.PAUSEATPOINTS;
         m_state = MoveStates.MOVING;
         r_state = RotateBeforeMove.WAITFORROTATE;
         l_state = LinkState.NONE;
+
+        // Timers
         searchTimer = new Timer();
         stopMoveTimer = new Timer();
+
+        // Search times and their coroutines
         pathCalcSearch = RecalculatePathToTarget(searchUpdateDestTime);
         pathCalcSearchRunning = false;
         pathCalcCombat = RecalculatePathToTarget(combatUpdateDestTime);
         pathCalcCombatRunning = false;
-        detectionSphere.excludeLayers = ~(LayerMask.GetMask("EnvironmentBox") | (int)detectionSphere.includeLayers);
 
+        // NavMeshAgent component
         navMeshAgent = GetComponent<NavMeshAgent>();
+        if (navMeshAgent == null)
+        {
+            Debug.Log(gameObject.name + " doesn't have a NavMeshAgent");
+        }
         navMeshAgent.updatePosition = false;
         navMeshAgent.updateRotation = false;
         navMeshAgent.stoppingDistance = closeEnoughDistanceFromCorner;
+
+        // Patrol route
         if (!FindPatrolRoute(!useCrowdedPatrolRoute))
         {
             Debug.Log(gameObject.name + ": No patrol route found");
         }
 
+        // Animation
+        animator = GetComponentInChildren<Animator>();
+
+        if (animator == null) Debug.Log(gameObject.name + " has no animator");
+
+        // Debug
         DebugSpheres = new GameObject[10];
         for (int i = 0; i < DebugSpheres.Count(); i++)
         {
@@ -138,6 +163,15 @@ public class EnemyBase : EntityClass
         // Cooldowns and timers
         searchTimer.CallPerFrame(Time.deltaTime);
         stopMoveTimer.CallPerFrame(Time.deltaTime);
+
+        // Animation parameters
+        // Speed (between 0 and 1)
+        float val = RigBodVel.sqrMagnitude;
+        if (val > 1.0f)
+        {
+            val = ((RigBodVel.sqrMagnitude / 10.0f) + 1.2f) / hSpeedCap;
+        }
+        animator.SetFloat("Speed", val);
 
         // Debug
         for (int i = 0; i < DebugSpheres.Count(); i++)
