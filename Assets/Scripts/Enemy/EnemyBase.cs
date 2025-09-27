@@ -42,7 +42,6 @@ public class EnemyBase : EntityClass
     List<Vector3> offMeshLinkPoints;
     int currOffMeshLinkPoint;
     LinkTraverseDir linkDir;
-    Transform bottom;
     SphereCollider detectionSphere;
     [SerializeField] float maxDistFromEntity;
     Transform targetEntity;
@@ -61,6 +60,7 @@ public class EnemyBase : EntityClass
 
     // Animation
     Animator animator;
+    float par_Speed;
 
     // Debug
     GameObject[] DebugSpheres;
@@ -96,19 +96,6 @@ public class EnemyBase : EntityClass
         patrolRoute = null;
         offMeshLinkPoints = new List<Vector3>();
         currOffMeshLinkPoint = 0;
-        foreach (Transform t in GetComponentsInChildren<Transform>())
-        {
-            if (t.CompareTag("Bottom"))
-            {
-                bottom = t;
-                break;
-            }
-        }
-        if (bottom == null)
-        {
-            Debug.Log(gameObject.name + " has no bottom: using transform pos");
-            bottom = transform;
-        }
 
         // States
         b_state = BehaviourState.PATROL;
@@ -147,6 +134,10 @@ public class EnemyBase : EntityClass
         animator = GetComponentInChildren<Animator>();
 
         if (animator == null) Debug.Log(gameObject.name + " has no animator");
+        // Parameters
+        par_Speed = 0.0f;
+
+        StartCoroutine(ParameterCalc());
 
         // Debug
         DebugSpheres = new GameObject[10];
@@ -166,12 +157,7 @@ public class EnemyBase : EntityClass
 
         // Animation parameters
         // Speed (between 0 and 1)
-        float val = RigBodVel.sqrMagnitude;
-        if (val > 1.0f)
-        {
-            val = ((RigBodVel.sqrMagnitude / 10.0f) + 1.2f) / hSpeedCap;
-        }
-        animator.SetFloat("Speed", val);
+        animator.SetFloat("Speed", par_Speed);
 
         // Debug
         for (int i = 0; i < DebugSpheres.Count(); i++)
@@ -302,7 +288,7 @@ public class EnemyBase : EntityClass
                     case LinkTraverseDir.FORWARD:
                         for (int i = currOffMeshLinkPoint; i < offMeshLinkPoints.Count(); i++)
                         {
-                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (bottom.position)).sqrMagnitude;
+                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - BottomPos).sqrMagnitude;
                             if (distanceFromCornerSqr > d)
                             {
                                 distanceFromCornerSqr = d;
@@ -313,7 +299,7 @@ public class EnemyBase : EntityClass
                     case LinkTraverseDir.BACKWARDS:
                         for (int i = currOffMeshLinkPoint; i >= 0; i--)
                         {
-                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - (bottom.position)).sqrMagnitude;
+                            float d = (offMeshLinkPoints[currOffMeshLinkPoint] - BottomPos).sqrMagnitude;
                             if (distanceFromCornerSqr > d)
                             {
                                 distanceFromCornerSqr = d;
@@ -338,7 +324,7 @@ public class EnemyBase : EntityClass
                 }
                 break;
         }
-        
+
     }
 
     void CalcNewState()
@@ -413,21 +399,21 @@ public class EnemyBase : EntityClass
             {
                 int numOfChildren = navMeshAgent.currentOffMeshLinkData.owner.GetComponent<Transform>().childCount;
                 offMeshLinkPoints.Clear();
-                
+
                 for (int i = 0; i < numOfChildren; i++)
                 {
                     Transform t = navMeshAgent.currentOffMeshLinkData.owner.GetComponent<Transform>().GetChild(i);
                     offMeshLinkPoints.Add(t.position);
                 }
 
-                float startPosDist = (offMeshLinkPoints[0] - bottom.position).sqrMagnitude;
-                float endPosDist = (offMeshLinkPoints[offMeshLinkPoints.Count()-1] - bottom.position).sqrMagnitude;
+                float startPosDist = (offMeshLinkPoints[0] - BottomPos).sqrMagnitude;
+                float endPosDist = (offMeshLinkPoints[offMeshLinkPoints.Count() - 1] - BottomPos).sqrMagnitude;
 
                 if (startPosDist <= endPosDist) { linkDir = LinkTraverseDir.FORWARD; currOffMeshLinkPoint = 0; }
                 else { linkDir = LinkTraverseDir.BACKWARDS; currOffMeshLinkPoint = offMeshLinkPoints.Count() - 1; }
 
                 l_state = LinkState.JUMPHOVER;
-                
+
 
                 m_state = MoveStates.HOVERING;
                 navMeshAgent.CompleteOffMeshLink();
@@ -479,7 +465,7 @@ public class EnemyBase : EntityClass
                     case MoveStates.MOVING:
                     case MoveStates.SPRINTING:
                     case MoveStates.HOVERING:
-                        moveVect = (navMeshAgent.steeringTarget - bottom.position).normalized;
+                        moveVect = (navMeshAgent.steeringTarget - CenterPos).normalized;
                         PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
                         YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
                         if (r_state == RotateBeforeMove.WAITFORROTATE)
@@ -494,7 +480,7 @@ public class EnemyBase : EntityClass
                 }
                 break;
             case LinkState.JUMPHOVER:
-                moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - bottom.position).normalized;
+                moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - BottomPos).normalized;
                 PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
                 YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
                 if (r_state == RotateBeforeMove.WAITFORROTATE)
@@ -507,7 +493,7 @@ public class EnemyBase : EntityClass
                 else moveVect = Vector3.zero;
                 break;
         }
-        
+
     }
 
     bool CheckIfCanSeeTarget(Vector3 fromPos)
@@ -566,6 +552,23 @@ public class EnemyBase : EntityClass
                 navMeshAgent.SetDestination(nHit.position);
             }
             yield return new WaitForSeconds(delayBetweenCalls);
+        }
+    }
+
+    IEnumerator ParameterCalc()
+    {
+        while (true)
+        {
+            float val = RigBodVel.sqrMagnitude;
+            if (val > 1.0f)
+            {
+                val = ((RigBodVel.sqrMagnitude / 10.0f) + 1.2f) / hSpeedCap;
+            }
+            if (Mathf.Abs(val - par_Speed) > 0.01f)
+            {
+                par_Speed += Mathf.Sign(val - par_Speed) * 0.01f;
+            }
+            yield return null;
         }
     }
 }

@@ -115,9 +115,27 @@ public abstract class EntityClass : MonoBehaviour
     Dictionary<GameObject, CollisionInfoStruct> collisionInfo;
 
     BoxCollider envColl;                                        // Rigid body environment hitbox
-    public float EnvCollHeight
+    public Vector3 BottomPos
     {
-        get => envColl.size.y;
+        get
+        {
+            return envColl.bounds.min;
+        }
+    }
+    public Vector3 CenterPos
+    {
+        get
+        {
+            return envColl.bounds.center;
+        }
+    }
+
+    public Vector3 WorldEnvSize
+    {
+        get
+        {
+            return new Vector3(envColl.size.x * transform.localScale.x, envColl.size.y * transform.localScale.y, envColl.size.z * transform.localScale.z);
+        }
     }
     protected Transform modelTrans;                             // Transform of model
     protected Dictionary<string, Transform> modelChildTrans;    // Transforms of parts of model
@@ -137,7 +155,7 @@ public abstract class EntityClass : MonoBehaviour
     protected State movState;
 
     // Debug
-    Vector3 nextPhysicsFramePosition;
+    Vector3 nextPhysicsFramePositionCenter;
 
     protected virtual void Start()
     {
@@ -315,17 +333,22 @@ public abstract class EntityClass : MonoBehaviour
         // Step up on small steps
         if (movState == State.GROUNDED && collisionInfo.ContainsKey(groundObj))
         {
-            nextPhysicsFramePosition = rigBod.position + (rigBod.linearVelocity + accel) * Time.fixedDeltaTime;
-            if (Physics.BoxCast(nextPhysicsFramePosition + Vector3.up * 2.0f, envColl.size / 2.1f, Vector3.down, out RaycastHit rhit, transform.rotation, 30.0f, LayerMask.GetMask("Obstacle"), QueryTriggerInteraction.Ignore))
+            nextPhysicsFramePositionCenter = CenterPos + (rigBod.linearVelocity + accel) * Time.fixedDeltaTime;
+
+            if (Physics.BoxCast(nextPhysicsFramePositionCenter + Vector3.up * 2.0f, WorldEnvSize / 2.0f, Vector3.down, out RaycastHit rhit, transform.rotation, 30.0f, LayerMask.GetMask("Obstacle"), QueryTriggerInteraction.Ignore))
             {
                 float angle = Vector3.SignedAngle(rhit.normal, new Vector3(0.0f, 1.0f, 0.0f), Vector3.Cross(rhit.normal, new Vector3(0.0f, 1.0f, 0.0f)));
                 Vector3 d = rhit.point - pointOfGround;
+
+                Debug.DrawLine(nextPhysicsFramePositionCenter, rhit.point, Color.yellow, 5.0f);
 
                 if (d.y <= stepHeight && d.y > 0.03f && (angle < rampMaxAngle))
                 {
                     rigBod.MovePosition(rigBod.position + Vector3.up * (d.y * 1.1f));
                 }
             }
+            
+            
         }
 
         // Remove forces that are just going into collided objects
