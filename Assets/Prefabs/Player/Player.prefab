@@ -257,6 +257,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   DebugText: {fileID: 0}
+  maxHP: 20
   hSpeedCap: 15
   vSpeedCap: 10
   fallSpeedCap: 10

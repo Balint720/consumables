@@ -30,7 +30,7 @@ public abstract class EntityClass : MonoBehaviour
     protected MoveType moveType;
 
     // Stats
-    int maxHP;
+    [SerializeField] int maxHP;
     public int MaxHP
     {
         get => maxHP;
@@ -142,7 +142,7 @@ public abstract class EntityClass : MonoBehaviour
     protected Dictionary<string, Collider> hitboxes;
 
     // Static variables
-    protected static float maxRotationDegreesBeforeMove = 10.0f;
+    protected static float maxRotationDegreesBeforeMove = 20.0f;
     protected static float knockbackOnDeathMult = 10.0f;
 
     // Character movement state
@@ -340,8 +340,6 @@ public abstract class EntityClass : MonoBehaviour
                 float angle = Vector3.SignedAngle(rhit.normal, new Vector3(0.0f, 1.0f, 0.0f), Vector3.Cross(rhit.normal, new Vector3(0.0f, 1.0f, 0.0f)));
                 Vector3 d = rhit.point - pointOfGround;
 
-                Debug.DrawLine(nextPhysicsFramePositionCenter, rhit.point, Color.yellow, 5.0f);
-
                 if (d.y <= stepHeight && d.y > 0.03f && (angle < rampMaxAngle))
                 {
                     rigBod.MovePosition(rigBod.position + Vector3.up * (d.y * 1.1f));
@@ -414,14 +412,19 @@ public abstract class EntityClass : MonoBehaviour
     /// </summary>
     /// <param name="dmg"></param>
     /// <param name="knock"></param>
-    public void TakeDamageKnockback(int dmg, Vector3 knock)
+    public void TakeDamageKnockback(int dmg, Vector3 knock, GameObject hitBy)
     {
         currHP -= dmg;
         knockback = knock;
+        Debug.Log("Curr HP: " + currHP + " Damage taken: " + dmg);
 
         if (currHP <= 0)
         {
             ZeroHP();
+        }
+        else
+        {
+            OnGettingHit(hitBy);
         }
     }
 
@@ -433,7 +436,7 @@ public abstract class EntityClass : MonoBehaviour
         rigBod.AddForce(knockback * knockbackOnDeathMult, ForceMode.Force);
     }
 
-    public virtual void OnGettingHit(GameObject hitBy)
+    protected virtual void OnGettingHit(GameObject hitBy)
     {
         
     }

@@ -170,6 +170,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   grav: 5
   cosmetic: 0
+  stickToTarget: 1
   dmg: 1
   criticalDmgMult: 0
   speed: 50

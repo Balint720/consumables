@@ -122,7 +122,8 @@ public class EnemyBase : EntityClass
         }
         navMeshAgent.updatePosition = false;
         navMeshAgent.updateRotation = false;
-        navMeshAgent.stoppingDistance = closeEnoughDistanceFromCorner;
+        navMeshAgent.stoppingDistance = 0.0f;
+        navMeshAgent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
 
         // Patrol route
         if (!FindPatrolRoute(!useCrowdedPatrolRoute))
@@ -180,6 +181,9 @@ public class EnemyBase : EntityClass
                 DebugSpheres[i].GetComponent<Renderer>().enabled = false;
             }
         }
+
+        // Debug
+        DebugText.text = "MoveVect: " + moveVect.ToString();
     }
 
     override protected void FixedUpdate()
@@ -244,7 +248,7 @@ public class EnemyBase : EntityClass
                         if (!patrolRoute) { b_state = BehaviourState.STAND; break; }
                         if (navMeshAgent.hasPath)
                         {
-                            if (navMeshAgent.remainingDistance < navMeshAgent.stoppingDistance)
+                            if (navMeshAgent.remainingDistance < closeEnoughDistanceFromCorner)
                             {
                                 navMeshAgent.ResetPath();
                             }
@@ -260,8 +264,6 @@ public class EnemyBase : EntityClass
                             Debug.Log("Got here");
                             PatrolRouteCalc();
                         }
-                        DebugText.text = "Remaining distance: " + navMeshAgent.remainingDistance.ToString() + '\n';
-                        DebugText.text += "Stopping distance: " + navMeshAgent.stoppingDistance.ToString();
                         break;
                     case BehaviourState.SEARCH:
                         if (!targetEntity)
@@ -308,8 +310,6 @@ public class EnemyBase : EntityClass
                         }
                         break;
                 }
-                DebugText.text = "Remaining distance: " + distanceFromCornerSqr.ToString() + '\n';
-                DebugText.text += "Stopping distance: " + navMeshAgent.stoppingDistance.ToString();
 
                 currOffMeshLinkPoint = closestPoint;
 
@@ -464,20 +464,25 @@ public class EnemyBase : EntityClass
                         break;
                     case MoveStates.MOVING:
                     case MoveStates.SPRINTING:
+                        moveVect = navMeshAgent.steeringTarget - CenterPos;
+                        moveVect = new Vector3(moveVect.x, 0.0f, moveVect.z).normalized;
+                        PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
+                        YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
+                        break;
                     case MoveStates.HOVERING:
                         moveVect = (navMeshAgent.steeringTarget - CenterPos).normalized;
                         PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
                         YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
-                        if (r_state == RotateBeforeMove.WAITFORROTATE)
-                        {
-                            if (Mathf.Abs(((YawY < 0.0f) ? YawY + 360.0f : YawY) - modelTrans.eulerAngles.y) > maxRotationDegreesBeforeMove)
-                            {
-                                moveVect = Vector3.zero;
-                            }
-                        }
-                        else moveVect = Vector3.zero;
                         break;
                 }
+                if (r_state == RotateBeforeMove.WAITFORROTATE)
+                {
+                    if (Mathf.Abs(((YawY < 0.0f) ? YawY + 360.0f : YawY) - modelTrans.eulerAngles.y) > maxRotationDegreesBeforeMove)
+                    {
+                        moveVect = Vector3.zero;
+                    }
+                }
+                else moveVect = Vector3.zero;
                 break;
             case LinkState.JUMPHOVER:
                 moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - BottomPos).normalized;
@@ -511,6 +516,17 @@ public class EnemyBase : EntityClass
             }
         }
         return false;
+    }
+
+    protected override void OnGettingHit(GameObject hitBy)
+    {
+        base.OnGettingHit(hitBy);
+        if (hitBy.CompareTag("Entity"))
+        {
+            targetEntity = hitBy.transform;
+            if (CheckIfCanSeeTarget(RigBodPos)) b_state = BehaviourState.COMBAT;
+            else b_state = BehaviourState.SEARCH;
+        }
     }
 
     protected virtual void OnTriggerEnter(Collider other)

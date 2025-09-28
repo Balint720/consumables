@@ -21,13 +21,15 @@ public class ProjectileClass : MonoBehaviour
     public float grav;
 
     // Stats
-    public bool cosmetic;                   // Is projectile cosmetic (for hitscan weapons for ex)
-    public int dmg;                         // Damage of projectile
-    public float criticalDmgMult;           // Critical multiplier
-    public float speed;                     // Speed of projectile
-    public float accel;                     // Acceleration of projectile
-    public float range;                     // Range at which projectile disappears
-    public float knockbackStrength;             // Strength of knockback applied by weapon
+    [SerializeField] bool cosmetic;                 // Is projectile cosmetic (for hitscan weapons for ex)
+    [SerializeField] bool stickToTarget;            // Should the projectile destroy self on hit or should the model stay there for a brief period
+    [SerializeField] int dmg;                       // Damage of projectile
+    public int Dmg { get => dmg; }
+    [SerializeField] float criticalDmgMult;         // Critical multiplier
+    [SerializeField] float speed;                   // Speed of projectile
+    [SerializeField] float accel;                   // Acceleration of projectile
+    [SerializeField] float range;                   // Range at which projectile disappears
+    [SerializeField] float knockbackStrength;       // Strength of knockback applied by weapon
 
     // Spawn
     private Vector3 spawnPos;               // Spawn position
@@ -155,8 +157,7 @@ public class ProjectileClass : MonoBehaviour
             float critMult = 1.0f;
             if (hBox.IsCritical()) critMult = criticalDmgMult;
 
-            entityHit.TakeDamageKnockback(Mathf.RoundToInt(dmg * critMult * hBox.GetDmgMultiplier()), knockbackStrength * dir);
-            entityHit.OnGettingHit(GetOwner());
+            entityHit.TakeDamageKnockback(Mathf.RoundToInt(dmg * critMult * hBox.GetDmgMultiplier()), knockbackStrength * dir, GetOwner());
         }
         catch (Exception e)
         {
@@ -212,7 +213,7 @@ public class ProjectileClass : MonoBehaviour
 
     void DeleteSelf(Transform t = null)
     {
-        if (deleteTime <= 0.0f)
+        if (deleteTime <= 0.0f || !stickToTarget)
         {
             Destroy(gameObject);
         }
