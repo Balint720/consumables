@@ -38,18 +38,9 @@ public class Cooldown
         lastTimeUsed = Time.time;
         ResetTimer();
     }
-    public float GetTimer()
-    {
-        return timer;
-    }
-    public float GetLastTimeUsed()
-    {
-        return lastTimeUsed;
-    }
-    public bool IsReady()
-    {
-        return isReady;
-    }
+    public float Timer => timer;
+    public float LastTimeUsed => lastTimeUsed;
+    public bool IsReady => isReady;
     public void CallPerFrame(float timeSinceLastFrame)
     {
         if (!isReady)
@@ -69,6 +60,8 @@ public class Timer
     protected float timer;
     bool isOn = false;
     bool isDone = false;
+
+    public bool IsOn => isOn;
 
     public bool StartTimer(float length)
     {
@@ -94,16 +87,18 @@ public class Timer
         }
     }
 
-    public bool IsDone()
+    public bool IsDone
     {
-        if (isDone && isOn)
-        {
-            isOn = false;
-            return true;
-        }
-        else
-        {
-            return false;
+        get {
+            if (isDone && isOn)
+            {
+                isOn = false;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 
@@ -112,8 +107,5 @@ public class Timer
         isOn = false;
     }
 
-    public float GetTimeLeft()
-    {
-        return timer;
-    }
+    public float TimeLeft => timer;
 }

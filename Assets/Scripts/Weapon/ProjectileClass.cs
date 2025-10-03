@@ -10,7 +10,18 @@ using System.Runtime.CompilerServices;
 
 public class ProjectileClass : MonoBehaviour
 {
-    int ownerID;
+    GameObject owner;
+    public GameObject Owner
+    {
+        get
+        {
+            return owner;
+        }
+        set
+        {
+            owner = value;
+        }
+    }
 
     // Unity components
     Collider hitbox;
@@ -29,7 +40,7 @@ public class ProjectileClass : MonoBehaviour
     [SerializeField] float speed;                   // Speed of projectile
     [SerializeField] float accel;                   // Acceleration of projectile
     [SerializeField] float range;                   // Range at which projectile disappears
-    [SerializeField] float knockbackStrength;       // Strength of knockback applied by weapon
+    [SerializeField] float weaponKnockback;       // Strength of weaponKnockback applied by weapon
 
     // Spawn
     private Vector3 spawnPos;               // Spawn position
@@ -116,7 +127,7 @@ public class ProjectileClass : MonoBehaviour
         else if (other.gameObject.layer == LayerMask.NameToLayer("Hitbox"))
         {
             // Exit if hit self before set time passed
-            if (other.transform.IsChildOf(GetOwner().transform))
+            if (other.transform.IsChildOf(Owner.transform))
             {
                 // Behaviour might be changed
                 if (Time.time - spawnTime < timeBeforeCanHitSelf)
@@ -157,7 +168,7 @@ public class ProjectileClass : MonoBehaviour
             float critMult = 1.0f;
             if (hBox.IsCritical()) critMult = criticalDmgMult;
 
-            entityHit.TakeDamageKnockback(Mathf.RoundToInt(dmg * critMult * hBox.GetDmgMultiplier()), knockbackStrength * dir, GetOwner());
+            entityHit.TakeDamageKnockback(Mathf.RoundToInt(dmg * critMult * hBox.GetDmgMultiplier()), weaponKnockback * dir, Owner);
         }
         catch (Exception e)
         {
@@ -173,28 +184,8 @@ public class ProjectileClass : MonoBehaviour
     {
         dir = newDir;
     }
-    public void SetOwner(GameObject newOwner)
-    {
-        ownerID = newOwner.GetInstanceID();
-    }
-    public void SetOwner(int id)
-    {
-        ownerID = id;
-    }
 
-    public GameObject GetOwner()
-    {
-        if (ownerID == 0)
-        {
-            return null;
-        }
-        else
-        {
-            return (GameObject)EditorUtility.InstanceIDToObject(ownerID);
-        }
-    }
-
-    public void SetValuesOfProj(int dmgIn, float criticalDmgMultIn, float speedIn = -1.0f, float knockbackStrengthIn = -1.0f)
+    public void SetValuesOfProj(int dmgIn, float criticalDmgMultIn, float speedIn = -1.0f, float weaponKnockbackIn = -1.0f)
     {
         dmg = dmgIn;
         if (criticalDmgMult >= 0.0f)
@@ -205,9 +196,9 @@ public class ProjectileClass : MonoBehaviour
         {
             speed = speedIn;
         }
-        if (knockbackStrengthIn >= 0.0f)
+        if (weaponKnockbackIn >= 0.0f)
         {
-            knockbackStrength = knockbackStrengthIn;
+            weaponKnockback = weaponKnockbackIn;
         }
     }
 

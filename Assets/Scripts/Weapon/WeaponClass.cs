@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using Unity.VisualScripting;
 using Unity.VisualScripting.FullSerializer;
 using UnityEditor;
@@ -52,7 +53,7 @@ public class WeaponClass : MonoBehaviour
         public float recoilRecoveryTime;                // How long until recoil resets in seconds
         public float bloom;                             // Random spread of weapon, deviation from where the bullet should go, value is maximum possible deviation
         public int rpm;                                 // Fire rate: rounds per minute
-        public float knockbackStrength;                 // Strength of knockback applied by weapon
+        public float weaponKnockback;                 // Strength of weaponKnockback applied by weapon
         public float range;                             // Range of weapon, for hitscan this is the max distance of the raycast, for projectiles the projectile gets destroyed after traveling this many units
         public float projSpeed;                         // Speed of projectile
         public float chargeMaxDur;                      // How long to fully charge weapon (in seconds)
@@ -61,8 +62,24 @@ public class WeaponClass : MonoBehaviour
         public ProjectileClass projectile;              // Projectile that is sent by weapon
     }
 
+    public FiringMode FireMode
+    {
+        get => currStats.fireMode;
+        private set => currStats.fireMode = value;
+        }
 
-    int ownerID;                                // Get ID of weapon's owner
+    GameObject owner;
+    public GameObject Owner
+    {
+        get
+        {
+            return owner;
+        }
+        set
+        {
+            owner = value;
+        }
+    }
     public LayerMask layerMaskOfHitscan;
 
     // State
@@ -84,7 +101,7 @@ public class WeaponClass : MonoBehaviour
     float recoilValMod;                         // Recoil will be multiplied by this value
     float bloomMod;                             // Maximum bloom will be multiplied by this value
     float rpmMod;                               // RPM will be multiplied by this value
-    float knockbackMod;                         // KnockbackStrength will be multiplied by this value
+    float weaponKnockbackMod;                         // weaponKnockback will be multiplied by this value
     float projSpeedMod;                         // Speed of projectile will be multiplied by this value
     float chargeMaxDurMod;                      // Duration for maximum charge will be multiplied by this value
     public Vector3 offset;                      // Visual fired bullets are offset from here (Maybe projectiles will just straight up be offset)
@@ -114,7 +131,7 @@ public class WeaponClass : MonoBehaviour
         recoilValMod = 1.0f;
         bloomMod = 1.0f;
         rpmMod = 1.0f;
-        knockbackMod = 1.0f;
+        weaponKnockbackMod = 1.0f;
         projSpeedMod = 1.0f;
         chargeMaxDurMod = 1.0f;
         currModDur = 0.0f;
@@ -209,8 +226,8 @@ public class WeaponClass : MonoBehaviour
         p.SetDirection(direction);
 
         // Set projectile values and owner
-        p.SetValuesOfProj(Mathf.RoundToInt(currStats.dmg * dmgMod * chargeDurSpeedMod), currStats.criticalDmgMult, currStats.projSpeed * projSpeedMod * chargeDurSpeedMod, currStats.knockbackStrength * knockbackMod * chargeDurSpeedMod);
-        p.SetOwner(ownerID);
+        p.SetValuesOfProj(Mathf.RoundToInt(currStats.dmg * dmgMod * chargeDurSpeedMod), currStats.criticalDmgMult, currStats.projSpeed * projSpeedMod * chargeDurSpeedMod, currStats.weaponKnockback * weaponKnockbackMod * chargeDurSpeedMod);
+        p.Owner = owner;
     }
 
     public void Fire(CameraControl cam, ref Vector2 addRot, Vector3 speed = new Vector3())
@@ -225,7 +242,7 @@ public class WeaponClass : MonoBehaviour
     public void Fire(Vector3 origin, Vector3 direction, Quaternion rotation, ref Vector2 addRot, Vector3 speed = new Vector3())
     {
         // Only shoot if rate of fire allows it
-        if (canShootRPM.IsReady())
+        if (canShootRPM.IsReady)
         {
             RaycastHit hitInfo;
 
@@ -234,7 +251,7 @@ public class WeaponClass : MonoBehaviour
             {
                 case WeaponType.HITSCAN_SINGLE:
                     // Reset recoil if enough time has passed; Otherwise progress recoil pattern
-                    if (Time.time - canShootRPM.GetLastTimeUsed() >= currStats.recoilRecoveryTime)
+                    if (Time.time - canShootRPM.LastTimeUsed >= currStats.recoilRecoveryTime)
                     {
                         recoilInd = 0;
                     }
@@ -314,7 +331,7 @@ public class WeaponClass : MonoBehaviour
         // If we hit an entity, make it reduce its hp by the weapon's dmg
         if (hitInfo.collider != null)
         {
-            if (hitInfo.collider.gameObject != GetOwner())
+            if (hitInfo.collider.gameObject != Owner)
             {
                 if (hitInfo.collider.gameObject.layer == LayerMask.NameToLayer("Hitbox"))
                 {
@@ -371,7 +388,7 @@ public class WeaponClass : MonoBehaviour
             float critMult = 1.0f;
             if (hBox.IsCritical()) critMult = currStats.criticalDmgMult;
 
-            entityHit.TakeDamageKnockback(Mathf.RoundToInt(currStats.dmg * dmgMod * critMult * hBox.GetDmgMultiplier()), currStats.knockbackStrength * dir, GetOwner());
+            entityHit.TakeDamageKnockback(Mathf.RoundToInt(currStats.dmg * dmgMod * critMult * hBox.GetDmgMultiplier()), currStats.weaponKnockback * dir, Owner);
         }
         catch (Exception e)
         {
@@ -421,28 +438,6 @@ public class WeaponClass : MonoBehaviour
         }
     }
 
-    // Setters and getters
-    public void SetOwner(GameObject newOwner)
-    {
-        ownerID = newOwner.GetInstanceID();
-    }
-    public GameObject GetOwner()
-    {
-        if (ownerID == 0)
-        {
-            return null;
-        }
-        else
-        {
-            return (GameObject)EditorUtility.InstanceIDToObject(ownerID);
-        }
-    }
-
-    public FiringMode GetFiringMode()
-    {
-        return currStats.fireMode;
-    }
-
     public void SetState(WeaponModifier newState, float duration)
     {
         w_mod = newState;
@@ -459,7 +454,7 @@ public class WeaponClass : MonoBehaviour
 
     public void SetTriggerState(TriggerState st, CameraControl cam, ref Vector2 addRot, Vector3 speed = new Vector3())
     {
-        switch (GetFiringMode())
+        switch (FireMode)
         {
             case FiringMode.SEMI:
                 if (triggerState == TriggerState.RELEASED && st == TriggerState.HELD)

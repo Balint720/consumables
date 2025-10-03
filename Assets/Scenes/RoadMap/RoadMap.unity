@@ -408,7 +408,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.53333336
   m_MinRegionArea: 0.1
   m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
@@ -3063,7 +3063,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.53333336
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
@@ -7608,6 +7608,38 @@ PrefabInstance:
     - target: {fileID: 6199281788030509336, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7887510550277426340, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
+      propertyPath: DebugText
+      value: 
+      objectReference: {fileID: 925820462}
+    - target: {fileID: 7887510550277426340, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
+      propertyPath: currStats.dmg
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7887510550277426340, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
+      propertyPath: chargeAttackTime
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7887510550277426340, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
+      propertyPath: chargeAttackDelay
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 7887510550277426340, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
+      propertyPath: currStats.projSpeed
+      value: 40
+      objectReference: {fileID: 0}
+    - target: {fileID: 7887510550277426340, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
+      propertyPath: currStats.projectile
+      value: 
+      objectReference: {fileID: -8204751489182697972, guid: a4b12dca7ac5df944b3a892f0bf070fb, type: 3}
+    - target: {fileID: 7887510550277426340, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
+      propertyPath: currStats.weaponType
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7887510550277426340, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
+      propertyPath: chargeAttackCooldown.timerMax
+      value: 5
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

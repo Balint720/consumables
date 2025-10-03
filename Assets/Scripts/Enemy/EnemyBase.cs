@@ -19,32 +19,34 @@ public class EnemyBase : EntityClass
         STAND,
         PATROL,
         SEARCH,
-        COMBAT
+        COMBAT,
+        ATTACK
     };
 
-    enum PathTraverseType { PAUSEATPOINTS, MOVEINSTANTLY };
-    enum MoveStates { STOPPED, MOVING, SPRINTING, HOVERING, JUMPING };
+    protected enum PathTraverseType { PAUSEATPOINTS, MOVEINSTANTLY };
+    protected enum MoveStates { STOPPED, WALKING, SPRINTING, HOVERING, JUMPING };
     enum LinkTraverseDir { FORWARD = 1, BACKWARDS = -1 };
-    enum RotateBeforeMove { WAITFORROTATE, MOVEANYWAY };
-    enum LinkState { NONE, JUMPHOVER };
+    protected enum RotateBeforeMove { WAITFORROTATE, MOVEANYWAY };
+    protected enum LinkState { NONE, JUMPHOVER };
 
     [SerializeField] bool useCrowdedPatrolRoute;
-    BehaviourState b_state;
-    PathTraverseType p_state;
-    MoveStates m_state;
-    RotateBeforeMove r_state;
-    LinkState l_state;
+    protected BehaviourState b_state;
+    protected PathTraverseType p_state;
+    protected MoveStates m_state;
+    protected RotateBeforeMove r_state;
+    protected LinkState l_state;
     PatrolScript patrolRoute;
 
-    NavMeshAgent navMeshAgent;
+    protected NavMeshAgent navMeshAgent;
 
     int currPatrolPoint;                                // 0 based, points start from 1 in editor
     List<Vector3> offMeshLinkPoints;
     int currOffMeshLinkPoint;
     LinkTraverseDir linkDir;
     SphereCollider detectionSphere;
+    protected float DetectionSphereRadius => detectionSphere.radius;
     [SerializeField] float maxDistFromEntity;
-    Transform targetEntity;
+    protected Transform targetEntity;
     Timer searchTimer;
     Timer stopMoveTimer;
     [SerializeField] float searchTime;
@@ -57,6 +59,8 @@ public class EnemyBase : EntityClass
     IEnumerator pathCalcCombat;
     bool pathCalcCombatRunning;
     float closeEnoughDistanceFromCorner = 1.1f;
+    static float meleeDistance = 3.0f;
+    static float distanceEpsilon = 1.0f;
 
     // Animation
     Animator animator;
@@ -100,7 +104,7 @@ public class EnemyBase : EntityClass
         // States
         b_state = BehaviourState.PATROL;
         p_state = PathTraverseType.PAUSEATPOINTS;
-        m_state = MoveStates.MOVING;
+        m_state = MoveStates.WALKING;
         r_state = RotateBeforeMove.WAITFORROTATE;
         l_state = LinkState.NONE;
 
@@ -235,7 +239,7 @@ public class EnemyBase : EntityClass
         }
     }
 
-    void StateMachine()
+    virtual protected void StateMachine()
     {
         switch (l_state)
         {
@@ -261,7 +265,6 @@ public class EnemyBase : EntityClass
                                 stopMoveTimer.StopTimer();
                                 stopMoveTimer.StartTimer(patrolPointPauseTime);
                             }
-                            Debug.Log("Got here");
                             PatrolRouteCalc();
                         }
                         break;
@@ -324,10 +327,9 @@ public class EnemyBase : EntityClass
                 }
                 break;
         }
-
     }
 
-    void CalcNewState()
+    virtual protected void CalcNewState()
     {
         switch (b_state)
         {
@@ -348,14 +350,14 @@ public class EnemyBase : EntityClass
                 {
                     searchTimer.StartTimer(searchTime);
 
-                    if (searchTimer.IsDone() && (transform.position - targetEntity.position).sqrMagnitude > maxDistFromEntity * maxDistFromEntity) b_state = BehaviourState.PATROL;
+                    if (searchTimer.IsDone && (transform.position - targetEntity.position).sqrMagnitude > maxDistFromEntity * maxDistFromEntity) b_state = BehaviourState.PATROL;
                 }
                 break;
             case BehaviourState.COMBAT:
                 if (!CheckIfCanSeeTarget(RigBodPos))
                 {
                     searchTimer.StartTimer(searchTime / 2.0f);
-                    if (searchTimer.IsDone())
+                    if (searchTimer.IsDone)
                     {
                         b_state = BehaviourState.SEARCH;
                     }
@@ -367,17 +369,17 @@ public class EnemyBase : EntityClass
                 break;
         }
 
-        if (m_state != MoveStates.STOPPED) MoveStateCalc();
+        MoveStateCalc();
 
         switch (m_state)
         {
             case MoveStates.STOPPED:
-                if (stopMoveTimer.IsDone())
+                if (stopMoveTimer.IsDone)
                 {
                     MoveStateCalc();
                 }
                 break;
-            case MoveStates.MOVING:
+            case MoveStates.WALKING:
                 moveType = MoveType.WALK;
                 hSpeedCapMultiplier = 1.0f;
                 break;
@@ -391,7 +393,7 @@ public class EnemyBase : EntityClass
         }
     }
 
-    void MoveStateCalc()
+    virtual protected void MoveStateCalc()
     {
         if (navMeshAgent.isOnOffMeshLink && l_state == LinkState.NONE)
         {
@@ -429,7 +431,36 @@ public class EnemyBase : EntityClass
         }
         else if (l_state == LinkState.NONE)
         {
-            m_state = MoveStates.MOVING;
+            if (m_state == MoveStates.STOPPED && stopMoveTimer.IsOn)
+            {
+                if (stopMoveTimer.IsDone) stopMoveTimer.StopTimer();
+            }
+            else
+            {
+                switch (b_state)
+                {
+                    case BehaviourState.STAND:
+                        m_state = MoveStates.STOPPED;
+                        break;
+                    case BehaviourState.PATROL:
+                        m_state = MoveStates.WALKING;
+                        break;
+                    case BehaviourState.SEARCH:
+                        m_state = MoveStates.WALKING;
+                        break;
+                    case BehaviourState.COMBAT:
+                        if (navMeshAgent.remainingDistance > closeEnoughDistanceFromCorner)
+                        {
+                            if (b_state == BehaviourState.COMBAT && navMeshAgent.remainingDistance > meleeDistance * 1.1f)
+                                m_state = MoveStates.SPRINTING;
+                            else
+                                m_state = MoveStates.WALKING;
+                        }
+                        else
+                            m_state = MoveStates.STOPPED;
+                        break;
+                }
+            }
         }
     }
 
@@ -452,7 +483,7 @@ public class EnemyBase : EntityClass
         }
     }
 
-    void CalcMovementInput()
+    virtual protected void CalcMovementInput()
     {
         switch (l_state)
         {
@@ -462,7 +493,7 @@ public class EnemyBase : EntityClass
                     case MoveStates.STOPPED:
                         moveVect = Vector3.zero;
                         break;
-                    case MoveStates.MOVING:
+                    case MoveStates.WALKING:
                     case MoveStates.SPRINTING:
                         moveVect = navMeshAgent.steeringTarget - CenterPos;
                         moveVect = new Vector3(moveVect.x, 0.0f, moveVect.z).normalized;
@@ -559,19 +590,21 @@ public class EnemyBase : EntityClass
         }
     }
 
-    IEnumerator RecalculatePathToTarget(float delayBetweenCalls)
+    virtual protected IEnumerator RecalculatePathToTarget(float delayBetweenCalls)
     {
         while (targetEntity != null)
         {
-            if (NavMesh.SamplePosition(targetEntity.position, out NavMeshHit nHit, maxDistFromEntity, NavMesh.AllAreas))
+            Vector3 positionCloseToEntity = targetEntity.position + (RigBodPos - targetEntity.position).normalized * meleeDistance;
+            if (NavMesh.SamplePosition(positionCloseToEntity, out NavMeshHit nHit, maxDistFromEntity, NavMesh.AllAreas))
             {
-                navMeshAgent.SetDestination(nHit.position);
+                if ((nHit.position - RigBodPos).sqrMagnitude > distanceEpsilon*distanceEpsilon)
+                    navMeshAgent.SetDestination(nHit.position);
             }
             yield return new WaitForSeconds(delayBetweenCalls);
         }
     }
 
-    IEnumerator ParameterCalc()
+    virtual protected IEnumerator ParameterCalc()
     {
         while (true)
         {

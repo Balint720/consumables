@@ -13,9 +13,22 @@ using UnityEngine.AI;
 using UnityEngine.UI;
 using UnityEngine.UIElements;
 
+public interface Damageable
+{
+    public int MaxHP
+    {
+        get;
+    }
+    public int CurrHP
+    {
+        get;
+    }
+    public void TakeDamageKnockback(int dmg, Vector3 knock, GameObject hitBy);
+}
+
 // Entity
 // Class to be inherited
-public abstract class EntityClass : MonoBehaviour
+public abstract class EntityClass : MonoBehaviour, Damageable
 {
     public TextMeshProUGUI DebugText;
 
@@ -345,8 +358,8 @@ public abstract class EntityClass : MonoBehaviour
                     rigBod.MovePosition(rigBod.position + Vector3.up * (d.y * 1.1f));
                 }
             }
-            
-            
+
+
         }
 
         // Remove forces that are just going into collided objects
@@ -420,7 +433,7 @@ public abstract class EntityClass : MonoBehaviour
 
         if (currHP <= 0)
         {
-            ZeroHP();
+            Die();
         }
         else
         {
@@ -431,14 +444,14 @@ public abstract class EntityClass : MonoBehaviour
     /// <summary>
     /// If entity hits 0 hp, run this function
     /// </summary>
-    protected virtual void ZeroHP()
+    protected virtual void Die()
     {
         rigBod.AddForce(knockback * knockbackOnDeathMult, ForceMode.Force);
     }
 
     protected virtual void OnGettingHit(GameObject hitBy)
     {
-        
+
     }
 
     protected virtual void OnCollisionEnter(Collision cInfo)

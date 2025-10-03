@@ -141,7 +141,7 @@ public class PlayerControl : EntityClass
         for (i = 0; i < weaponFabs.Count; i++)
         {
             weapon.Add(Instantiate<WeaponClass>(weaponFabs[i], transform.position, transform.rotation));
-            weapon[i].SetOwner(gameObject);
+            weapon[i].Owner = gameObject;
             weapon[i].UnEquip();
         }
 

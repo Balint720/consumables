@@ -1593,7 +1593,7 @@ GameObject:
   - component: {fileID: 6199281788030509336}
   - component: {fileID: 1380931460002453639}
   - component: {fileID: 3422803296918598308}
-  - component: {fileID: 4630914006822250331}
+  - component: {fileID: 7887510550277426340}
   - component: {fileID: 5952768639977197104}
   m_Layer: 6
   m_Name: Enemy_Shoulder
@@ -1667,7 +1667,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 112
   m_CollisionDetection: 0
---- !u!114 &4630914006822250331
+--- !u!114 &7887510550277426340
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1676,9 +1676,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 5048176466625334933}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 161757a3e05ca8b45ad8fb67b17fa5f2, type: 3}
+  m_Script: {fileID: 11500000, guid: ca67040306d0ad44298c0c9cdeb58802, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyBase
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyShoulderScript
   DebugText: {fileID: 0}
   maxHP: 20
   hSpeedCap: 10
@@ -1696,6 +1696,10 @@ MonoBehaviour:
   searchTime: 10
   patrolPointPauseTime: 0.2
   pathCornerPauseTime: 0.5
+  chargeAttackCooldown:
+    timerMax: 10
+  leftFireLoc: {fileID: 6751617056803911648}
+  rightFireLoc: {fileID: 285461260293520178}
 --- !u!195 &5952768639977197104
 NavMeshAgent:
   m_ObjectHideFlags: 0
