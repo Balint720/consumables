@@ -1682,6 +1682,7 @@ MonoBehaviour:
   DebugText: {fileID: 0}
   maxHP: 20
   hSpeedCap: 10
+  sprintSpeedMult: 1.3
   vSpeedCap: 0
   fallSpeedCap: 0
   hAccel: 2
@@ -1696,8 +1697,25 @@ MonoBehaviour:
   searchTime: 10
   patrolPointPauseTime: 0.2
   pathCornerPauseTime: 0.5
+  currStats:
+    dmg: 1
+    criticalDmgMult: 0
+    pelCount: 0
+    recoilPattern: []
+    recoilRecoveryTime: 0
+    bloom: 0
+    rpm: 0
+    weaponKnockback: 0
+    range: 0
+    projSpeed: 40
+    chargeMaxDur: 0
+    weaponType: 2
+    fireMode: 0
+    projectile: {fileID: -8204751489182697972, guid: a4b12dca7ac5df944b3a892f0bf070fb, type: 3}
+  chargeAttackTime: 1
+  chargeAttackDelay: 0.5
   chargeAttackCooldown:
-    timerMax: 10
+    timerMax: 5
   leftFireLoc: {fileID: 6751617056803911648}
   rightFireLoc: {fileID: 285461260293520178}
 --- !u!195 &5952768639977197104

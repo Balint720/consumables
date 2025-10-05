@@ -58,6 +58,7 @@ public abstract class EntityClass : MonoBehaviour, Damageable
 
     // Movement Variables
     [SerializeField] protected float hSpeedCap;
+    [SerializeField] protected float sprintSpeedMult;
     protected float hSpeedCapMultiplier;
     [SerializeField] protected float vSpeedCap;
     protected float vSpeedCapMultiplier;
