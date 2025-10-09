@@ -188,8 +188,6 @@ public partial class EnemyBase
 
                 m_state = MoveStates.HOVERING;
                 navMeshAgent.CompleteOffMeshLink();
-
-                Debug.Log("Starting NavMeshLink");
             }
             catch (Exception e)
             {

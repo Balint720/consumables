@@ -169,9 +169,6 @@ public partial class EnemyBase : EntityClass
                 DebugSpheres[i].GetComponent<Renderer>().enabled = false;
             }
         }
-
-        // Debug
-        DebugText.text = "MoveVect: " + moveVect.ToString();
     }
 
     override protected void FixedUpdate()

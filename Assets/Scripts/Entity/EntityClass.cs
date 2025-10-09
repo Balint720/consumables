@@ -343,7 +343,7 @@ public abstract class EntityClass : MonoBehaviour, Damageable
             case State.AIRBORNE:
                 break;
         }
-
+        
         // Step up on small steps
         if (movState == State.GROUNDED && collisionInfo.ContainsKey(groundObj))
         {
@@ -359,8 +359,6 @@ public abstract class EntityClass : MonoBehaviour, Damageable
                     rigBod.MovePosition(rigBod.position + Vector3.up * (d.y * 1.1f));
                 }
             }
-
-
         }
 
         // Remove forces that are just going into collided objects
@@ -371,6 +369,9 @@ public abstract class EntityClass : MonoBehaviour, Damageable
             accel -= accComponent;
             currGravVec -= gravComponent;
         }
+
+        DebugText.text = "Acceleration vector: " + accel.ToString();
+        DebugText.text += "\nGravity vector: " + currGravVec.ToString();
 
         // Apply movement
         rigBod.AddForce(accel, ForceMode.VelocityChange);

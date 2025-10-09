@@ -71,8 +71,6 @@ public partial class EnemyShoulder : EnemyBase
         // Cooldowns and timers
         chargeAttackTimer.CallPerFrame(Time.deltaTime);
         chargeAttackCooldown.CallPerFrame(Time.deltaTime);
-
-        DebugText.text += stopMoveTimer.IsOn.ToString() + stopMoveTimer.IsDone.ToString();
     }
 
     bool FireCannon(Transform shoulder)

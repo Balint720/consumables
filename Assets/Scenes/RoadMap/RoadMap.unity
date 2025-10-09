@@ -5301,10 +5301,6 @@ PrefabInstance:
       propertyPath: DebugText
       value: 
       objectReference: {fileID: 724180653}
-    - target: {fileID: 4404498324331835895, guid: c2ba0c761820ca848a17443974601741, type: 3}
-      propertyPath: m_IsTrigger
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 5531233502433447853, guid: c2ba0c761820ca848a17443974601741, type: 3}
       propertyPath: m_Name
       value: Player (1)
