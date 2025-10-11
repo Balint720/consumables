@@ -25,9 +25,12 @@ public class BowAnimation : BlendMeshDriverConvert
     void FixedUpdate()
     {
         animator.SetFloat("ChargePercent", bow.ChargeMod);
-        if (bow.TriggerShot) animator.SetTrigger("ReleaseArrow");
+        if (bow.TriggerShot)
+        {
+            animator.SetTrigger("ReleaseArrow");
+        }
+        else animator.ResetTrigger("ReleaseArrow");
         animator.SetBool("Charging", bow.TriggerSt == WeaponClass.TriggerState.HELD);
-
-        
+        animator.SetFloat("RPM", (25.0f/24.0f) * bow.CurrStats.rpm / 60.0f);
     }
 }

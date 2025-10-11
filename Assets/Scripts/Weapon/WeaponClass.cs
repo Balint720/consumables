@@ -117,6 +117,7 @@ public class WeaponClass : MonoBehaviour
     public WeaponStats baseStats;
     public List<WeaponStats> modifiedStats;
     WeaponStats currStats;
+    public WeaponStats CurrStats => currStats;
     float currModDur;
     float currChargeDur;
     public float ChargeMod {
@@ -198,7 +199,10 @@ public class WeaponClass : MonoBehaviour
     {
         // Cooldowns
         canShootRPM.CallPerFrame(Time.deltaTime);
-        currChargeDur += Time.deltaTime;
+        if (t_state == TriggerState.HELD)
+            currChargeDur += Time.deltaTime;
+        else
+            currChargeDur = 0.0f;
 
         if (isActive)
         {
@@ -223,8 +227,6 @@ public class WeaponClass : MonoBehaviour
         {
             w_mod = WeaponModifier.BASE;
         }
-
-        currChargeDur += Time.fixedDeltaTime;
     }
 
     /// <summary>
@@ -328,6 +330,7 @@ public class WeaponClass : MonoBehaviour
                         chargeMod = ChargeMod;
                     }
                     ShootProjectile(projOffsetOrigin, direction, rotation, chargeMod);
+                    
                     break;
             }
 

@@ -430,7 +430,7 @@ MonoBehaviour:
     recoilPattern: []
     recoilRecoveryTime: 0.8
     bloom: 0
-    rpm: 300
+    rpm: 60
     weaponKnockback: 0
     range: 1000
     projSpeed: 50
