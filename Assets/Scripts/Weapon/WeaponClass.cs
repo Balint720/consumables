@@ -43,6 +43,25 @@ public class WeaponClass : MonoBehaviour
         HELD
     }
 
+    bool _triggerShot;
+    public bool TriggerShot
+    {
+        get
+        {
+            if (_triggerShot)
+            {
+                _triggerShot = false;
+                return true;
+            }
+            else return false;
+        }
+
+        set
+        {
+            _triggerShot = value;
+        }
+    } 
+
     [Serializable]
     public struct WeaponStats
     {
@@ -85,7 +104,11 @@ public class WeaponClass : MonoBehaviour
     // State
     WeaponModifier w_mod;
     WeaponModifier prev_w_mod;
-    TriggerState triggerState;
+    TriggerState t_state;
+    public TriggerState TriggerSt
+    {
+        get => t_state;
+    }
     bool isActive;
     bool isPartPlaying;
 
@@ -96,6 +119,13 @@ public class WeaponClass : MonoBehaviour
     WeaponStats currStats;
     float currModDur;
     float currChargeDur;
+    public float ChargeMod {
+        get
+        {
+            float tmp = currChargeDur / (currStats.chargeMaxDur * chargeMaxDurMod);
+            return (tmp > 1.0f) ? 1.0f : tmp;
+        }
+}
     float dmgMod;                               // Damage will be multiplied by this value
     int recoilInd;                              // Index of where we are in the recoil pattern
     float recoilValMod;                         // Recoil will be multiplied by this value
@@ -145,7 +175,7 @@ public class WeaponClass : MonoBehaviour
         // Set stats to base stats
         currStats = baseStats;
         w_mod = WeaponModifier.BASE;
-        triggerState = TriggerState.RELEASED;
+        t_state = TriggerState.RELEASED;
 
         // On spawn be unequipped
         isActive = false;
@@ -295,8 +325,7 @@ public class WeaponClass : MonoBehaviour
                     float chargeMod = 1.0f;
                     if (currStats.fireMode == FiringMode.BOW || currStats.fireMode == FiringMode.CHARGE)
                     {
-                        chargeMod = currChargeDur / (currStats.chargeMaxDur * chargeMaxDurMod);
-                        if (chargeMod > 1.0f) chargeMod = 1.0f;
+                        chargeMod = ChargeMod;
                     }
                     ShootProjectile(projOffsetOrigin, direction, rotation, chargeMod);
                     break;
@@ -457,7 +486,7 @@ public class WeaponClass : MonoBehaviour
         switch (FireMode)
         {
             case FiringMode.SEMI:
-                if (triggerState == TriggerState.RELEASED && st == TriggerState.HELD)
+                if (t_state == TriggerState.RELEASED && st == TriggerState.HELD)
                 {
                     Fire(cam, ref addRot, speed);
                 }
@@ -469,18 +498,19 @@ public class WeaponClass : MonoBehaviour
                 }
                 break;
             case FiringMode.BOW:
-                if (triggerState == TriggerState.RELEASED && st == TriggerState.HELD)
+                if (t_state == TriggerState.RELEASED && st == TriggerState.HELD)
                 {
                     currChargeDur = 0.0f;
                 }
-                else if (triggerState == TriggerState.HELD && st == TriggerState.RELEASED)
+                else if (t_state == TriggerState.HELD && st == TriggerState.RELEASED)
                 {
+                    TriggerShot = true;
                     Fire(cam, ref addRot, speed);
                 }
                 break;
         }
 
-        triggerState = st;
+        t_state = st;
     }
 
     public bool Equip()

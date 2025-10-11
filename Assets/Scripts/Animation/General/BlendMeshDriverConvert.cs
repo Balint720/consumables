@@ -1,8 +1,10 @@
+using System;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Unity.Collections;
 using UnityEngine;
 
-public class BowAnimation : MonoBehaviour
+public class BlendMeshDriverConvert : MonoBehaviour
 {
     public GameObject modelObject;
     public GameObject controlBone;
@@ -20,44 +22,46 @@ public class BowAnimation : MonoBehaviour
     public bool multiply;
     public float multiplier;
     public bool degreeToWholeNumTransform;
+    public bool radToDegTransform;
     SkinnedMeshRenderer skMeRenderer;
     Transform boneTrans;
 
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    virtual protected void Start()
     {
         skMeRenderer = modelObject.GetComponent<SkinnedMeshRenderer>();
         boneTrans = controlBone.GetComponent<Transform>();
     }
 
     // Update is called once per frame
-    void Update()
+    virtual protected void Update()
     {
         float weight = 0.0f;
         switch (coordOfBone)
         {
             case Coord.X:
-                weight = boneTrans.position.x;
+                weight = boneTrans.localPosition.x;
                 break;
             case Coord.Y:
-                weight = boneTrans.position.y;
+                weight = boneTrans.localPosition.y;
                 break;
             case Coord.Z:
-                weight = boneTrans.position.z;
+                weight = boneTrans.localPosition.z;
                 break;
             case Coord.RX:
-                weight = boneTrans.rotation.x;
+                weight = boneTrans.localRotation.x;
                 break;
             case Coord.RY:
-                weight = boneTrans.rotation.y;
+                weight = boneTrans.localRotation.y;
                 break;
             case Coord.RZ:
-                weight = boneTrans.rotation.z;
+                weight = boneTrans.localRotation.z;
                 break;
         }
 
-        if (degreeToWholeNumTransform) weight /= 90;
+        if (radToDegTransform) weight *= Mathf.Rad2Deg;
+        if (degreeToWholeNumTransform) weight /= 360.0f;
 
         if (multiply) weight *= multiplier;
 
