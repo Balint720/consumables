@@ -444,7 +444,6 @@ public partial class EnemyBase : EntityClass
             }
             i++;
             Debug.DrawLine(nHit.position, targetPos, Color.red, 2.0f);
-            Debug.Log(!seeTargetFromPos + " " + done);
             if (i > MaxNavMeshIterations) return Vector3.zero;
         }
         while (seeTargetFromPos || !done);

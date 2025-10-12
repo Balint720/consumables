@@ -1711,7 +1711,7 @@ MonoBehaviour:
     chargeMaxDur: 0
     weaponType: 2
     fireMode: 0
-    projectile: {fileID: -8204751489182697972, guid: a4b12dca7ac5df944b3a892f0bf070fb, type: 3}
+    projectile: {fileID: 4495842121767581641, guid: 0c112f94c4eace743a4647fb19be933a, type: 3}
   repositionPointPauseTime: 0
   chargeAttackTime: 1
   chargeAttackDelay: 0.5
