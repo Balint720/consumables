@@ -481,7 +481,7 @@ MonoBehaviour:
     weaponType: 0
     fireMode: 0
     projectile: {fileID: 0}
-  offset: {x: 0, y: 0, z: 1}
+  offset: {x: 1.2, y: -0.6, z: 1}
   modelOffset: {x: 1.2, y: -0.2, z: 3}
   modelOffsetRot: {x: 0, y: 0, z: 0, w: 1}
   modelScale: {x: 0, y: 0, z: 0}

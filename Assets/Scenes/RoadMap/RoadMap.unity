@@ -408,7 +408,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.53333336
+  m_VoxelSize: 0.5
   m_MinRegionArea: 0.1
   m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
@@ -649,7 +649,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4069546000396317853, guid: 298525517bcd81741aef944e5d35502b, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 12.2
+      value: 12.01
       objectReference: {fileID: 0}
     - target: {fileID: 4069546000396317853, guid: 298525517bcd81741aef944e5d35502b, type: 3}
       propertyPath: m_LocalPosition.y
@@ -657,7 +657,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4069546000396317853, guid: 298525517bcd81741aef944e5d35502b, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -16.39
+      value: -14.53
       objectReference: {fileID: 0}
     - target: {fileID: 4069546000396317853, guid: 298525517bcd81741aef944e5d35502b, type: 3}
       propertyPath: m_LocalRotation.w
@@ -3063,7 +3063,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.53333336
+  m_VoxelSize: 0.5
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
@@ -3761,7 +3761,7 @@ Transform:
   m_GameObject: {fileID: 1251404175}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -11.75, y: 2.59, z: -4.84}
+  m_LocalPosition: {x: -12.34, y: 2.59, z: -2.16}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5293,6 +5293,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 3200578900401237614, guid: c2ba0c761820ca848a17443974601741, type: 3}
+      propertyPath: m_Layer
+      value: 7
+      objectReference: {fileID: 0}
     - target: {fileID: 3265791287293190399, guid: c2ba0c761820ca848a17443974601741, type: 3}
       propertyPath: cam
       value: 
@@ -7567,7 +7571,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6199281788030509336, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 24.66
+      value: 23.06
       objectReference: {fileID: 0}
     - target: {fileID: 6199281788030509336, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
       propertyPath: m_LocalPosition.y
@@ -7575,7 +7579,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6199281788030509336, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -8.73
+      value: -10.69
       objectReference: {fileID: 0}
     - target: {fileID: 6199281788030509336, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
       propertyPath: m_LocalRotation.w
@@ -7616,6 +7620,10 @@ PrefabInstance:
     - target: {fileID: 7887510550277426340, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
       propertyPath: repositionPointPauseTime
       value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7887510550277426340, guid: 9a99d43eca66fc24493586f8b4d69a82, type: 3}
+      propertyPath: currStats.weaponKnockback
+      value: 10
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

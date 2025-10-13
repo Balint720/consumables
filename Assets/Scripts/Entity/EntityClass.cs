@@ -376,6 +376,14 @@ public abstract class EntityClass : MonoBehaviour, Damageable
         // Apply movement
         rigBod.AddForce(accel, ForceMode.VelocityChange);
         rigBod.AddForce(currGravVec, ForceMode.Acceleration);
+
+        // Apply knockback
+        if (knockback.sqrMagnitude > 0)
+        {
+            Debug.Log(knockback * knockbackMod);
+        }
+        rigBod.AddForce(knockback * knockbackMod, ForceMode.VelocityChange);
+        knockback = Vector3.zero;
     }
 
     /// <summary>

@@ -223,14 +223,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   grav: 0
-  cosmetic: 1
+  cosmetic: 0
   stickToTarget: 0
   dmg: 1
   criticalDmgMult: 0
   speed: 100
   accel: 0
   range: 50
-  weaponKnockback: 0
+  weaponKnockback: 1
 --- !u!54 &-2318373687200117337
 Rigidbody:
   m_ObjectHideFlags: 0
