@@ -29,7 +29,8 @@ public class ProjectileClass : MonoBehaviour
 
     private Vector3 dir;                    // Direction the projectile is going
     private Vector3 speedVec;
-    public float grav;
+    [SerializeField] float grav;
+    public float Gravity => grav;
 
     // Stats
     [SerializeField] bool cosmetic;                 // Is projectile cosmetic (for hitscan weapons for ex)
@@ -38,7 +39,9 @@ public class ProjectileClass : MonoBehaviour
     public int Dmg { get => dmg; }
     [SerializeField] float criticalDmgMult;         // Critical multiplier
     [SerializeField] float speed;                   // Speed of projectile
+    public float Speed => speed;
     [SerializeField] float accel;                   // Acceleration of projectile
+    public float Accel => accel;
     [SerializeField] float range;                   // Range at which projectile disappears
     [SerializeField] float weaponKnockback;       // Strength of weaponKnockback applied by weapon
 

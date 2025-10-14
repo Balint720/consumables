@@ -13,7 +13,7 @@ using UnityEngine.VFX;
 
 
 
-public class WeaponClass : MonoBehaviour
+public partial class WeaponClass : MonoBehaviour
 {
     public enum FiringMode
     {
@@ -193,6 +193,8 @@ public class WeaponClass : MonoBehaviour
         isPartPlaying = true;
 
         //transform.localScale += modelScale;
+
+        LineRendererSetup();
     }
 
     void Update()
@@ -209,6 +211,8 @@ public class WeaponClass : MonoBehaviour
             transform.position += Quaternion.LookRotation(transform.forward) * modelOffset;
             transform.rotation *= modelOffsetRot;
         }
+
+        LineRenderOn = currStats.weaponType == WeaponType.PROJECTILE;
     }
 
     void FixedUpdate()
