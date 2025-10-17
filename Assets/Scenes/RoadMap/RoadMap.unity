@@ -4754,6 +4754,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 168954c0c940074479cab95d7dafd965, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!20 &1483288582 stripped
+Camera:
+  m_CorrespondingSourceObject: {fileID: 5199781283501379137, guid: 99623bb9fd22ac74e9c80f2917b3c667, type: 3}
+  m_PrefabInstance: {fileID: 1483288577}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1512274220
 GameObject:
   m_ObjectHideFlags: 0
@@ -5293,6 +5298,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1991386522387068202, guid: c2ba0c761820ca848a17443974601741, type: 3}
+      propertyPath: m_Camera
+      value: 
+      objectReference: {fileID: 1483288582}
+    - target: {fileID: 1991386522387068202, guid: c2ba0c761820ca848a17443974601741, type: 3}
+      propertyPath: m_RenderMode
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3200578900401237614, guid: c2ba0c761820ca848a17443974601741, type: 3}
       propertyPath: m_Layer
       value: 7
@@ -5308,10 +5321,6 @@ PrefabInstance:
     - target: {fileID: 5531233502433447853, guid: c2ba0c761820ca848a17443974601741, type: 3}
       propertyPath: m_Name
       value: Player (1)
-      objectReference: {fileID: 0}
-    - target: {fileID: 6588869380725044298, guid: c2ba0c761820ca848a17443974601741, type: 3}
-      propertyPath: m_ExcludeLayers.m_Bits
-      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8350495453405971514, guid: c2ba0c761820ca848a17443974601741, type: 3}
       propertyPath: m_LocalScale.y

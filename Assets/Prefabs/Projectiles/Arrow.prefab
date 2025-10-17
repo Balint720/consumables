@@ -47,7 +47,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 825f8ce3f83774c4283295e8e27358ac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  grav: 5
+  grav: 10
   cosmetic: 0
   stickToTarget: 1
   dmg: 1

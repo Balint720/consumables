@@ -63,7 +63,7 @@ class Consumable
     }
 }
 
-public class PlayerControl : EntityClass
+public partial class PlayerControl : EntityClass
 {
     // Camera
     [SerializeField] CameraControl cam;
@@ -176,8 +176,6 @@ public class PlayerControl : EntityClass
 
         weapon[equippedItem].transform.position = transform.position;
         weapon[equippedItem].transform.rotation = Quaternion.Euler(PitchX, YawY, 0);
-
-        weapon[equippedItem].DrawArcOfProjThis(cam);
     }
 
     override protected void FixedUpdate()

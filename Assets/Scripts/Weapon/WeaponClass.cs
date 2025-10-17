@@ -148,6 +148,9 @@ public partial class WeaponClass : MonoBehaviour
     VFXRenderer circlingVFXRenderer;
     MeshRenderer[] renderers;
 
+    // Static values
+    static public float distanceFromOriginToConvergeTo = 20.0f;
+
 
     void Start()
     {
@@ -194,7 +197,8 @@ public partial class WeaponClass : MonoBehaviour
 
         //transform.localScale += modelScale;
 
-        LineRendererSetup();
+        // Arc drawing objects
+        SetUpLineGameObjects();
     }
 
     void Update()
@@ -211,8 +215,6 @@ public partial class WeaponClass : MonoBehaviour
             transform.position += Quaternion.LookRotation(transform.forward) * modelOffset;
             transform.rotation *= modelOffsetRot;
         }
-
-        LineRenderOn = currStats.weaponType == WeaponType.PROJECTILE;
     }
 
     void FixedUpdate()
@@ -327,13 +329,21 @@ public partial class WeaponClass : MonoBehaviour
                     break;
 
                 case WeaponType.PROJECTILE:
+                    // Offset origin of projectile spawn
+                    hitInfo = ShootHitScan(origin, direction);
                     Vector3 projOffsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
+                    Vector3 projOffsetDir = Vector3.Normalize(origin + distanceFromOriginToConvergeTo * direction - projOffsetOrigin);
+                    if (hitInfo.collider != null)
+                    {
+                        projOffsetDir = Vector3.Normalize(hitInfo.point - projOffsetOrigin);
+                    }
+
                     float chargeMod = 1.0f;
                     if (currStats.fireMode == FiringMode.BOW || currStats.fireMode == FiringMode.CHARGE)
                     {
                         chargeMod = ChargeMod;
                     }
-                    ShootProjectile(projOffsetOrigin, direction, rotation, chargeMod);
+                    ShootProjectile(projOffsetOrigin, projOffsetDir, rotation, chargeMod);
                     
                     break;
             }
@@ -350,7 +360,7 @@ public partial class WeaponClass : MonoBehaviour
             // Get point and direction from where the visual projectile should fire (gun barrel)
             // The direction should be towards the point that the ray hit, and if the ray hit nothing then just shoot it in the direction 50 units away
             Vector3 offsetOrigin = origin + rotation * new Vector3(offset.x, offset.y, offset.z);
-            Vector3 offsetDir = Vector3.Normalize(origin + 50 * dir - offsetOrigin);
+            Vector3 offsetDir = Vector3.Normalize(origin + distanceFromOriginToConvergeTo * dir - offsetOrigin);
             if (hitInfo.collider != null)
             {
                 offsetDir = Vector3.Normalize(hitInfo.point - offsetOrigin);
@@ -513,6 +523,22 @@ public partial class WeaponClass : MonoBehaviour
                 {
                     TriggerShot = true;
                     Fire(cam, ref addRot, speed);
+                }
+                else if (t_state == TriggerState.HELD && st == TriggerState.HELD)
+                {
+                    // Draw arc of projectile
+                    Vector3 origin = cam.transform.position;
+                    Vector3 direction = cam.transform.forward;
+        
+                    RaycastHit hitInfo = ShootHitScan(origin, direction);
+                    Vector3 projOffsetOrigin = origin + cam.transform.rotation * new Vector3(offset.x, offset.y, offset.z);
+                    Vector3 projOffsetDir = Vector3.Normalize(origin + distanceFromOriginToConvergeTo * direction - projOffsetOrigin);
+                    if (hitInfo.collider != null)
+                    {
+                        projOffsetDir = Vector3.Normalize(hitInfo.point - projOffsetOrigin);
+                    }
+
+                    DrawArcOfProj(projOffsetOrigin, projOffsetDir, currStats.projSpeed > 0.0f ? currStats.projSpeed * projSpeedMod * ChargeMod : currStats.projectile.Speed * projSpeedMod * ChargeMod, currStats.projectile.Gravity);
                 }
                 break;
         }
