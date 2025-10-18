@@ -99,6 +99,19 @@ public partial class WeaponClass : MonoBehaviour
             owner = value;
         }
     }
+    Transform shootPos;
+    public Transform ShootPos
+    {
+        get
+        {
+            return shootPos;
+        }
+        set
+        {
+            if (value != null) shootPos = value;
+            else shootPos = owner.transform;
+        }
+    }
     public LayerMask layerMaskOfHitscan;
 
     // State
@@ -146,7 +159,7 @@ public partial class WeaponClass : MonoBehaviour
     public Vector3 modelScale;
     VisualEffect circlingVFX;
     VFXRenderer circlingVFXRenderer;
-    MeshRenderer[] renderers;
+    Renderer[] renderers;
 
     // Static values
     static public float distanceFromOriginToConvergeTo = 20.0f;
@@ -185,7 +198,7 @@ public partial class WeaponClass : MonoBehaviour
         isActive = false;
 
         // Get renderer to hide and show weapon
-        renderers = GetComponentsInChildren<MeshRenderer>();
+        renderers = GetComponentsInChildren<Renderer>();
 
         // Get vfx for consumable effect
         circlingVFX = GetComponent<VisualEffect>();
@@ -215,6 +228,8 @@ public partial class WeaponClass : MonoBehaviour
             transform.position += Quaternion.LookRotation(transform.forward) * modelOffset;
             transform.rotation *= modelOffsetRot;
         }
+
+        UpdateDrawArcOfBow();
     }
 
     void FixedUpdate()
@@ -270,9 +285,9 @@ public partial class WeaponClass : MonoBehaviour
 
     public void Fire(CameraControl cam, ref Vector2 addRot, Vector3 speed = new Vector3())
     {
-        Vector3 origin = cam.transform.position;
-        Vector3 direction = cam.transform.forward;
-        Quaternion rotation = cam.transform.rotation;
+        Vector3 origin = shootPos.position;
+        Vector3 direction = shootPos.forward;
+        Quaternion rotation = shootPos.rotation;
 
         Fire(origin, direction, rotation, ref addRot, speed);
     }
@@ -523,22 +538,6 @@ public partial class WeaponClass : MonoBehaviour
                 {
                     TriggerShot = true;
                     Fire(cam, ref addRot, speed);
-                }
-                else if (t_state == TriggerState.HELD && st == TriggerState.HELD)
-                {
-                    // Draw arc of projectile
-                    Vector3 origin = cam.transform.position;
-                    Vector3 direction = cam.transform.forward;
-        
-                    RaycastHit hitInfo = ShootHitScan(origin, direction);
-                    Vector3 projOffsetOrigin = origin + cam.transform.rotation * new Vector3(offset.x, offset.y, offset.z);
-                    Vector3 projOffsetDir = Vector3.Normalize(origin + distanceFromOriginToConvergeTo * direction - projOffsetOrigin);
-                    if (hitInfo.collider != null)
-                    {
-                        projOffsetDir = Vector3.Normalize(hitInfo.point - projOffsetOrigin);
-                    }
-
-                    DrawArcOfProj(projOffsetOrigin, projOffsetDir, currStats.projSpeed > 0.0f ? currStats.projSpeed * projSpeedMod * ChargeMod : currStats.projectile.Speed * projSpeedMod * ChargeMod, currStats.projectile.Gravity);
                 }
                 break;
         }

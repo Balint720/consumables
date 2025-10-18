@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using NUnit.Framework.Internal;
 using TMPro;
+using Unity.Collections;
 using Unity.Properties;
 using Unity.VisualScripting;
 using Unity.VisualScripting.FullSerializer;
@@ -75,6 +76,7 @@ public abstract class EntityClass : MonoBehaviour, Damageable
     protected Vector3 knockback;
     protected float knockbackMod;
     protected Vector3 moveVect;
+    protected Vector3 lookDir;
     [SerializeField] protected float turnSpeedRatio;
     protected float turnSpeedMod;
     float distanceOfGroundCheck;
@@ -99,6 +101,18 @@ public abstract class EntityClass : MonoBehaviour, Damageable
     {
         get => rotation.z;
         protected set => rotation.z = value;
+    }
+
+    public float[] AngleFromLookDir
+    {
+        get
+        {
+            float[] angles = new float[3];
+            angles[0] = Mathf.Abs(((PitchX < 0.0f) ? PitchX + 360.0f : PitchX) - modelTrans.eulerAngles.x);
+            angles[1] = Mathf.Abs(((YawY < 0.0f) ? YawY + 360.0f : YawY) - modelTrans.eulerAngles.y);
+            angles[2] = Mathf.Abs(((RollZ < 0.0f) ? RollZ + 360.0f : RollZ) - modelTrans.eulerAngles.z);
+            return angles;
+        }
     }
 
     // Extra tags
@@ -227,6 +241,7 @@ public abstract class EntityClass : MonoBehaviour, Damageable
         knockback = Vector3.zero;
         knockbackMod = 1.0f;
         moveVect = Vector3.zero;
+        lookDir = Vector3.zero;
         turnSpeedMod = 1.0f;
         accel = Vector3.zero;
         rotation = Vector2.zero;
@@ -259,6 +274,7 @@ public abstract class EntityClass : MonoBehaviour, Damageable
                 CalcMovementAccelerationFlying();
                 break;
         }
+        TurnToLookDirection();
         RotateModel();
     }
 
@@ -428,6 +444,12 @@ public abstract class EntityClass : MonoBehaviour, Damageable
 
         // Apply movement
         rigBod.AddForce(accel, ForceMode.VelocityChange);
+    }
+
+    void TurnToLookDirection()
+    {
+        PitchX = Vector3.SignedAngle(transform.forward, lookDir, transform.right);
+        YawY = Vector3.SignedAngle(transform.forward, lookDir, Vector3.up);
     }
 
     /// <summary>

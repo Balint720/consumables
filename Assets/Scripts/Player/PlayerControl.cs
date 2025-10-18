@@ -142,6 +142,7 @@ public partial class PlayerControl : EntityClass
         {
             weapon.Add(Instantiate<WeaponClass>(weaponFabs[i], transform.position, transform.rotation));
             weapon[i].Owner = gameObject;
+            weapon[i].ShootPos = cam.transform;
             weapon[i].UnEquip();
         }
 

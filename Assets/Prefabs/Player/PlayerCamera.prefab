@@ -171,3 +171,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Player: {fileID: 0}
   offset: {x: 0, y: 0.4, z: 0}
+  cameraComp: {fileID: 0}

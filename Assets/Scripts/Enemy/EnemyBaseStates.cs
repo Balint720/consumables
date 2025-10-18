@@ -237,4 +237,61 @@ public partial class EnemyBase
             }
         }
     }
+
+    protected void BaseMoveInputNoLink()
+    {
+        switch (m_state)
+        {
+            case MoveStates.STOPPED:
+                moveVect = Vector3.zero;
+                break;
+            case MoveStates.WALKING:
+            case MoveStates.SPRINTING:
+                moveVect = navMeshAgent.steeringTarget - CenterPos;
+                moveVect = new Vector3(moveVect.x, 0.0f, moveVect.z).normalized;
+                break;
+            case MoveStates.HOVERING:
+                moveVect = (navMeshAgent.steeringTarget - CenterPos).normalized;
+                break;
+        }
+    }
+    protected void BaseLookDirNoLink()
+    {
+        switch (b_state)
+        {
+            case BehaviourState.STAND:
+            case BehaviourState.ATTACK:
+                break;
+            case BehaviourState.PATROL:
+            case BehaviourState.SEARCH:
+                lookDir = moveVect;
+                break;
+            case BehaviourState.COMBAT_CHASE:
+                lookDir = CheckIfCanSeeTarget(RigBodPos) ? targetEntity.position - RigBodPos : moveVect;
+                break;
+            case BehaviourState.COMBAT_REPOSITION:
+                if (m_state == MoveStates.STOPPED) lookDir = CheckIfCanSeeTarget(RigBodPos) ? targetEntity.position - RigBodPos : lookDir;
+                else lookDir = moveVect;
+                break;
+        }
+        if (r_state == RotateBeforeMove.WAITFORROTATE)
+        {
+            if (Mathf.Abs(AngleFromLookDir[1]) > maxRotationDegreesBeforeMove)
+            {
+                moveVect = Vector3.zero;
+            }
+        }
+    }
+    protected void BaseMoveLookInputJumpHoverLink()
+    {
+        moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - BottomPos).normalized;
+        lookDir = moveVect;
+        if (r_state == RotateBeforeMove.WAITFORROTATE)
+        {
+            if (Mathf.Abs(AngleFromLookDir[1]) > maxRotationDegreesBeforeMove)
+            {
+                moveVect = Vector3.zero;
+            }
+        }
+    }
 }

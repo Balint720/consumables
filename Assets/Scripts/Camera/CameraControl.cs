@@ -3,7 +3,7 @@ using UnityEngine;
 public class CameraControl : MonoBehaviour
 {
     public GameObject Player;
-    private EntityClass script;
+    private EntityClass entity;
     public Vector3 offset;
     public Camera cameraComp;
 
@@ -11,7 +11,7 @@ public class CameraControl : MonoBehaviour
     void Start()
     {
         // Get the player character's script, which is assigned to the camera
-        script = Player.GetComponent<EntityClass>();
+        entity = Player.GetComponent<EntityClass>();
         cameraComp = gameObject.GetComponent<Camera>();
     }
 
@@ -19,7 +19,7 @@ public class CameraControl : MonoBehaviour
     void Update()
     {
         // The camera rotates based on player script's orientation variable, and the camera is at the position of the player
-        transform.localRotation = Quaternion.Euler(script.PitchX, script.YawY, 0);
+        transform.localRotation = Quaternion.Euler(entity.PitchX, entity.YawY, 0);
         transform.position = Player.transform.position + offset;
     }
 }

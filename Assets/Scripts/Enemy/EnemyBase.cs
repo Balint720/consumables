@@ -288,48 +288,13 @@ public partial class EnemyBase : EntityClass
         switch (l_state)
         {
             case LinkState.NONE:
-                switch (m_state)
-                {
-                    case MoveStates.STOPPED:
-                        moveVect = Vector3.zero;
-                        break;
-                    case MoveStates.WALKING:
-                    case MoveStates.SPRINTING:
-                        moveVect = navMeshAgent.steeringTarget - CenterPos;
-                        moveVect = new Vector3(moveVect.x, 0.0f, moveVect.z).normalized;
-                        PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
-                        YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
-                        break;
-                    case MoveStates.HOVERING:
-                        moveVect = (navMeshAgent.steeringTarget - CenterPos).normalized;
-                        PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
-                        YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
-                        break;
-                }
-                if (r_state == RotateBeforeMove.WAITFORROTATE)
-                {
-                    if (Mathf.Abs(((YawY < 0.0f) ? YawY + 360.0f : YawY) - modelTrans.eulerAngles.y) > maxRotationDegreesBeforeMove)
-                    {
-                        moveVect = Vector3.zero;
-                    }
-                }
-                else moveVect = Vector3.zero;
+                BaseMoveInputNoLink();
+                BaseLookDirNoLink();
                 break;
             case LinkState.JUMPHOVER:
-                moveVect = (offMeshLinkPoints[currOffMeshLinkPoint] - BottomPos).normalized;
-                PitchX = Vector3.SignedAngle(transform.forward, moveVect, transform.right);
-                YawY = Vector3.SignedAngle(transform.forward, moveVect, Vector3.up);
-                if (r_state == RotateBeforeMove.WAITFORROTATE)
-                {
-                    if (Mathf.Abs(((YawY < 0.0f) ? YawY + 360.0f : YawY) - modelTrans.eulerAngles.y) > maxRotationDegreesBeforeMove)
-                    {
-                        moveVect = Vector3.zero;
-                    }
-                }
-                else moveVect = Vector3.zero;
+                BaseMoveLookInputJumpHoverLink();
                 break;
         }
-
     }
 
     protected bool CheckIfCanSeeTarget(Vector3 fromPos)
