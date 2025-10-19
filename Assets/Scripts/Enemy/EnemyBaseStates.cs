@@ -2,9 +2,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
+
+using Vector3 = UnityEngine.Vector3;
 
 public partial class EnemyBase
 {
@@ -168,6 +171,7 @@ public partial class EnemyBase
         {
             try
             {
+                /*
                 int numOfChildren = navMeshAgent.currentOffMeshLinkData.owner.GetComponent<Transform>().childCount;
                 offMeshLinkPoints.Clear();
 
@@ -187,6 +191,55 @@ public partial class EnemyBase
 
 
                 m_state = MoveStates.HOVERING;
+                navMeshAgent.CompleteOffMeshLink();
+                */
+
+                Vector3 startPos = navMeshAgent.currentOffMeshLinkData.startPos;
+                Vector3 endPos = navMeshAgent.currentOffMeshLinkData.endPos;
+
+                int numOfPoints = (int)((endPos - startPos).sqrMagnitude / 1.25f);
+
+
+                offMeshLinkPoints = new List<Vector3>(numOfPoints);
+                for (int i = 0; i < numOfPoints; i++) offMeshLinkPoints.Add(Vector3.zero);
+                offMeshLinkPoints[0] = startPos; offMeshLinkPoints[numOfPoints - 1] = endPos;
+
+
+                float distanceX = Vector3.Dot(endPos - startPos, Vector3.right);
+                float distanceZ = Vector3.Dot(endPos - startPos, Vector3.forward);
+                float distanceY = Vector3.Dot(endPos - startPos, Vector3.up);
+                float incrementAbsolute = 1.0f / numOfPoints;
+                for (int i = 1; i < numOfPoints - 1; i++)
+                {
+                    // Function that starts slow then rapidly increases
+                    // x^3
+                    float x_xz = Mathf.Pow(incrementAbsolute * i, 3);
+                    // Function mapping 0 to 1 values with start end multipliers 0.5 and middle peak of 1.25 on a curve, where the integral value of 0 to 1 is 1:
+                    // -3 * (x - 0.5)^{2} + 1.25
+                    float x_y = 1.0f - MathFunctions.DecayFunction(0.347f, 2.0f, 0.1f, 5.0f, incrementAbsolute * i);
+                    Debug.Log("time: " + incrementAbsolute * i);
+                    Debug.Log("x_xz: " + x_xz);
+                    Debug.Log("x_y: " + x_y);
+                    float newPointX = startPos.x + distanceX * x_xz;
+                    float newPointZ = startPos.z + distanceZ * x_xz;
+                    float newPointY = startPos.y + distanceY * x_y;
+
+                    offMeshLinkPoints[i] = new Vector3(newPointX, newPointY, newPointZ);
+                }
+
+                // Debug
+                foreach (Vector3 point in offMeshLinkPoints)
+                {
+                    GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    sphere.GetComponent<Collider>().enabled = false;
+                    sphere.transform.position = point;
+                }
+
+                l_state = LinkState.JUMPHOVER;
+                m_state = MoveStates.HOVERING;
+
+                linkDir = LinkTraverseDir.FORWARD; currOffMeshLinkPoint = 0;
+
                 navMeshAgent.CompleteOffMeshLink();
             }
             catch (Exception e)
