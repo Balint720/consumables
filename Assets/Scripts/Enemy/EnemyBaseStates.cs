@@ -204,28 +204,47 @@ public partial class EnemyBase
                 for (int i = 0; i < numOfPoints; i++) offMeshLinkPoints.Add(Vector3.zero);
                 offMeshLinkPoints[0] = startPos; offMeshLinkPoints[numOfPoints - 1] = endPos;
 
-
                 float distanceX = Vector3.Dot(endPos - startPos, Vector3.right);
                 float distanceZ = Vector3.Dot(endPos - startPos, Vector3.forward);
                 float distanceY = Vector3.Dot(endPos - startPos, Vector3.up);
                 float incrementAbsolute = 1.0f / numOfPoints;
-                for (int i = 1; i < numOfPoints - 1; i++)
+                if (distanceY > 0.0f)
                 {
-                    // Function that starts slow then rapidly increases
-                    // x^3
-                    float x_xz = Mathf.Pow(incrementAbsolute * i, 3);
-                    // Function mapping 0 to 1 values with start end multipliers 0.5 and middle peak of 1.25 on a curve, where the integral value of 0 to 1 is 1:
-                    // -3 * (x - 0.5)^{2} + 1.25
-                    float x_y = 1.0f - MathFunctions.DecayFunction(0.347f, 2.0f, 0.1f, 5.0f, incrementAbsolute * i);
-                    Debug.Log("time: " + incrementAbsolute * i);
-                    Debug.Log("x_xz: " + x_xz);
-                    Debug.Log("x_y: " + x_y);
-                    float newPointX = startPos.x + distanceX * x_xz;
-                    float newPointZ = startPos.z + distanceZ * x_xz;
-                    float newPointY = startPos.y + distanceY * x_y;
+                    for (int i = 1; i < numOfPoints - 1; i++)
+                    {
+                        // Function that starts slow then rapidly increases
+                        // x^3
+                        float x_xz = Mathf.Pow(incrementAbsolute * i, 3);
+                        // Function mapping 0 to 1 values with start end multipliers 0.5 and middle peak of 1.25 on a curve, where the integral value of 0 to 1 is 1:
+                        // -3 * (x - 0.5)^{2} + 1.25
+                        float x_y = 1.0f - MathFunctions.DecayFunctionTotalToOne(0.347f, 2.0f, 0.1f, 5.0f, incrementAbsolute * i);
+                        float newPointX = startPos.x + distanceX * x_xz;
+                        float newPointZ = startPos.z + distanceZ * x_xz;
+                        float newPointY = startPos.y + distanceY * x_y;
 
-                    offMeshLinkPoints[i] = new Vector3(newPointX, newPointY, newPointZ);
+                        offMeshLinkPoints[i] = new Vector3(newPointX, newPointY, newPointZ);
+                    }
                 }
+                else
+                {
+                    for (int i = 1; i < numOfPoints - 1; i++)
+                    {
+                        // Function that starts fast, reaches peak at 50% progress already
+                        // x^3
+                        float x_xz = Mathf.Min(1.0f, Mathf.Sqrt(incrementAbsolute * i));
+                        // Function mapping 0 to 1 values with start end multipliers 0.5 and middle peak of 1.25 on a curve, where the integral value of 0 to 1 is 1:
+                        // -3 * (x - 0.5)^{2} + 1.25
+                        float x_y = 1.0f - MathFunctions.DecayFunctionTotalToOne(-1.0f, 2.1f, 0.1f, 1.5f, incrementAbsolute * i);
+                        float newPointX = startPos.x + distanceX * x_xz;
+                        float newPointZ = startPos.z + distanceZ * x_xz;
+                        float newPointY = startPos.y + distanceY * x_y;
+                        Debug.Log("Time: " + incrementAbsolute * i);
+                        Debug.Log("x_y: " + x_y);
+
+                        offMeshLinkPoints[i] = new Vector3(newPointX, newPointY, newPointZ);
+                    }
+                }
+                
 
                 // Debug
                 foreach (Vector3 point in offMeshLinkPoints)

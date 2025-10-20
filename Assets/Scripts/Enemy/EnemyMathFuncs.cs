@@ -10,10 +10,8 @@ static public class MathFunctions
         return -3 * Mathf.Pow(x - 0.5f, 2) + 1.25f;
     }
 
-    static public float DecayFunction(float expMult, float expComponent, float waveComponent, float waveFrequency, float time)
+    static public float DecayFunctionTotalToOne(float expMult, float expComponent, float waveComponent, float waveFrequency, float time)
     {
-        if (expMult > 1.0f) expMult = 1.0f;
-        else if (expMult < 0.0f) expMult = 0.0f;
-        return expMult * Mathf.Exp(-expComponent * time) + (1 - expMult) * Mathf.Exp(-waveComponent * time) * Mathf.Cos(waveFrequency * time);
+        return expMult * Mathf.Exp(-expComponent * time) + (1.0f - expMult) * Mathf.Exp(-waveComponent * time) * Mathf.Cos(waveFrequency * time);
     }
 }
