@@ -1,6 +1,12 @@
+using System.Collections.Generic;
 using UnityEngine;
 
-public class EnemyBlade : EnemyBase
+public partial class EnemyBlade : EnemyBase
 {
-    
+    // Stats
+    float dmgMod;
+    float projSpeedMod;
+    float weaponKnockbackMod;
+
+    [SerializeField] List<AttackClass> attacks;
 }

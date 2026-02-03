@@ -4,20 +4,28 @@ using UnityEngine.AI;
 
 public partial class EnemyShoulder : EnemyBase
 {
+    // Stats
     [SerializeField] WeaponClass.WeaponStats currStats;
     float dmgMod;
     float projSpeedMod;
     float weaponKnockbackMod;
+
+    // Movement timers, variables, directions
     [SerializeField] float repositionPointPauseTime;
+    [SerializeField] float distanceFromTarget;
+    Vector3 direction;
+
+    // Attack timers and cooldowns
     [SerializeField] float chargeAttackTime;
     float chargeAttackTimeMultiplier;
     [SerializeField] float chargeAttackDelay;
     Timer chargeAttackTimer;
     [SerializeField] Cooldown chargeAttackCooldown;
+
+    // Attack locations
     [SerializeField] Transform leftFireLoc;
     [SerializeField] Transform rightFireLoc;
-    Vector3 direction;
-    [SerializeField] float distanceFromTarget;
+    
 
     // Animation
     static float smallDelayRightBeforeFire = 0.2f;

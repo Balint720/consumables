@@ -1,0 +1,12 @@
+fileFormatVersion: 2
+guid: f3ac08efae16b0b4a8299ab07f256042
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - m_AttackInspectorUXML: {fileID: 9197481963319205126, guid: 503e7a78c6aa18e4b8e8ed7e3710ec03, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
