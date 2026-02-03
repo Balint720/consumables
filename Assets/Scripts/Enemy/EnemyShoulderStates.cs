@@ -145,7 +145,7 @@ public partial class EnemyShoulder
                 break;
             case BehaviourState.PATROL:
             case BehaviourState.SEARCH:
-                lookDir = moveVect;
+                if (moveVect != Vector3.zero) lookDir = moveVect;
                 break;
             case BehaviourState.COMBAT_CHASE:
                 lookDir = CheckIfCanSeeTarget(RigBodPos) ? targetEntity.position - RigBodPos : moveVect;

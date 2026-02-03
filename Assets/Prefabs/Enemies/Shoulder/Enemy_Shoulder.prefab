@@ -1428,7 +1428,7 @@ Animator:
   m_Controller: {fileID: 9100000, guid: 2898cf0944c4d314f899646fa041f46f, type: 2}
   m_CullingMode: 1
   m_UpdateMode: 0
-  m_ApplyRootMotion: 1
+  m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
@@ -1705,21 +1705,21 @@ MonoBehaviour:
     recoilRecoveryTime: 0
     bloom: 0
     rpm: 0
-    weaponKnockback: 0
+    weaponKnockback: 10
     range: 0
     projSpeed: 40
     chargeMaxDur: 0
     weaponType: 2
     fireMode: 0
     projectile: {fileID: 4495842121767581641, guid: 0c112f94c4eace743a4647fb19be933a, type: 3}
-  repositionPointPauseTime: 0
+  repositionPointPauseTime: 2
   chargeAttackTime: 1
   chargeAttackDelay: 0.5
   chargeAttackCooldown:
     timerMax: 5
   leftFireLoc: {fileID: 6751617056803911648}
   rightFireLoc: {fileID: 285461260293520178}
-  distanceFromTarget: 0
+  distanceFromTarget: 20
 --- !u!195 &5952768639977197104
 NavMeshAgent:
   m_ObjectHideFlags: 0

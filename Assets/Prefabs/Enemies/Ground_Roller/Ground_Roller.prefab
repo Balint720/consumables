@@ -100,7 +100,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8399240371361236272}
+  m_Father: {fileID: 5892931629053600728}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &7987866107893312434
 BoxCollider:
@@ -301,27 +301,27 @@ MonoBehaviour:
   m_GameObject: {fileID: 7079748089735304070}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 27cb113efabb60f469bddad4a4a04a2b, type: 3}
+  m_Script: {fileID: 11500000, guid: 161757a3e05ca8b45ad8fb67b17fa5f2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   DebugText: {fileID: 0}
-  maxHP: 100
-  HSpeedCap: 10
-  VSpeedCap: 10
+  maxHP: 0
+  hSpeedCap: 0
+  sprintSpeedMult: 0
+  vSpeedCap: 0
   fallSpeedCap: 0
-  HAccel: 40
-  VAccel: 0
-  grav: 20
-  turnSpeedRatio: 15
-  distanceOfGroundCheck: 0.2
-  DebugSphere: {fileID: 0}
-  howCloseToNavPos: 1.2
-  chaseRadius: 10
-  keepDistance: 1
-  dashCooldown: 5
-  dashDistance: 3
-  dashSpeedCapMultiplier: 8
-  dashAccelMultiplier: 8
+  hAccel: 0
+  vAccel: 0
+  flySpeedCap: 0
+  flyAccel: 0
+  grav: 0
+  turnSpeedRatio: 0
+  stepHeight: 1
+  useCrowdedPatrolRoute: 0
+  maxDistFromEntity: 0
+  searchTime: 0
+  patrolPointPauseTime: 0
+  pathCornerPauseTime: 0
 --- !u!114 &2514160096758927166
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -468,15 +468,15 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 0514e271e4a68014a9d6dac1592ee58d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4614100234809826770}
     - targetCorrespondingSourceObject: {fileID: 4167280743394806330, guid: 0514e271e4a68014a9d6dac1592ee58d, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2124026530051290418}
     - targetCorrespondingSourceObject: {fileID: 4167280743394806330, guid: 0514e271e4a68014a9d6dac1592ee58d, type: 3}
       insertIndex: -1
       addedObject: {fileID: 5426171169808353099}
-    - targetCorrespondingSourceObject: {fileID: 2512243300098982147, guid: 0514e271e4a68014a9d6dac1592ee58d, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 4614100234809826770}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0514e271e4a68014a9d6dac1592ee58d, type: 3}
 --- !u!4 &5892931629053600728 stripped
@@ -487,10 +487,5 @@ Transform:
 --- !u!4 &8041309782730444297 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4167280743394806330, guid: 0514e271e4a68014a9d6dac1592ee58d, type: 3}
-  m_PrefabInstance: {fileID: 6218731549170992179}
-  m_PrefabAsset: {fileID: 0}
---- !u!4 &8399240371361236272 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 2512243300098982147, guid: 0514e271e4a68014a9d6dac1592ee58d, type: 3}
   m_PrefabInstance: {fileID: 6218731549170992179}
   m_PrefabAsset: {fileID: 0}
