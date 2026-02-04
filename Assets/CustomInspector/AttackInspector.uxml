@@ -2,6 +2,4 @@
     <ui:Label text="Stats" name="stat_label" />
     <ui:IntegerField label="Base damage" value="1" name="dmg_field" binding-path="damage" />
     <ui:FloatField label="Base knockback" value="1" name="knock_field" binding-path="knockback" />
-    <ui:Label text="Hurtboxes" name="hbox_label" />
-    <ui:Label text="Animations" name="anim_label" />
 </ui:UXML>

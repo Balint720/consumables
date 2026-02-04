@@ -6,10 +6,10 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "Attack", menuName = "ScriptableObjects/Attack", order = 1)]
 public class AttackClass : ScriptableObject
 {
-    [SerializeField] int damage;
-    [SerializeField] float knockback;
-    [SerializeField] List<string> hurtBoxes;
-    [SerializeField] List<Animation[]> animations;
-    [SerializeField] List<int[]> activeInactiveFrames;
+    public int damage;
+    public float knockback;
+    public List<string> hurtboxes;
+    public List<Animation[]> animations;
+    public List<int[]> activeInactiveFrames;
 
 }

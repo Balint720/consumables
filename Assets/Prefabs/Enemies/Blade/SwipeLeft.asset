@@ -12,7 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63ae537d19d22de44aee60ec80bad86a, type: 3}
   m_Name: SwipeLeft
   m_EditorClassIdentifier: Assembly-CSharp::AttackClass
-  damage: 10
+  damage: 6
   knockback: 1
-  hurtBoxes:
+  hurtboxes:
   - Hurtbox_Saw_L
+  - Hurtbox_Saw_R
+  - Hurtbox_Explosion_Middle
+  - 
+  - Hurtbox_Saw_L
+  - Hurtbox_Saw_R
+  - Hurtbox_Explosion_Middle
+  - 
