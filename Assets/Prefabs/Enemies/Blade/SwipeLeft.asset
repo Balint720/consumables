@@ -13,13 +13,12 @@ MonoBehaviour:
   m_Name: SwipeLeft
   m_EditorClassIdentifier: Assembly-CSharp::AttackClass
   damage: 6
-  knockback: 1
+  knockback: 1.15
   hurtboxes:
   - Hurtbox_Saw_L
-  - Hurtbox_Saw_R
-  - Hurtbox_Explosion_Middle
-  - 
-  - Hurtbox_Saw_L
-  - Hurtbox_Saw_R
-  - Hurtbox_Explosion_Middle
-  - 
+  animations:
+  - innerList:
+    - {fileID: 678436370618375445, guid: 3aa20d96e134e3646a44f8c8810a1b8c, type: 3}
+    - {fileID: 678436370618375445, guid: 3f95de4367893d841b2d32f35d8edfde, type: 3}
+  testAnimation: {fileID: -6799507109110175511, guid: fbfef97bb6f003f42a74a16aa0fe3c24, type: 3}
+  activeInactiveFrames: []
