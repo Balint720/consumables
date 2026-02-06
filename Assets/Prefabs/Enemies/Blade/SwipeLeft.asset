@@ -21,4 +21,5 @@ MonoBehaviour:
     - {fileID: 678436370618375445, guid: 3aa20d96e134e3646a44f8c8810a1b8c, type: 3}
     - {fileID: 678436370618375445, guid: 3f95de4367893d841b2d32f35d8edfde, type: 3}
   testAnimation: {fileID: -6799507109110175511, guid: fbfef97bb6f003f42a74a16aa0fe3c24, type: 3}
-  activeInactiveFrames: []
+  activeInactiveFrames:
+  - innerList: 1000000014000000

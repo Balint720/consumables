@@ -4,11 +4,13 @@ using System.ComponentModel;
 using System.Linq;
 using Codice.CM.WorkspaceServer.Lock;
 using NUnit.Framework.Internal;
+using Unity.Mathematics;
 using Unity.Properties;
 using Unity.VisualScripting;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.Assertions.Must;
 using UnityEngine.UIElements;
 
 [CustomEditor(typeof(AttackClass))]
@@ -181,6 +183,9 @@ public class AttackInspector : Editor
         Label animLabel = new Label("Animations");
         animLabel.style.fontSize = h2;
 
+        Debug.Log("Animation object: " + sObj.FindProperty("animations").displayName);
+        
+
         ListView animList = new ListView()
         {
             bindingPath = "animations",
@@ -189,21 +194,69 @@ public class AttackInspector : Editor
             allowRemove = true,
 
             virtualizationMethod = CollectionVirtualizationMethod.FixedHeight,
-            fixedItemHeight = 250.0f
+            fixedItemHeight = 250.0f,
+            
+            // This is trying to make this work with custom code... not working, uncomment out at your own risk
+            /*
+            makeItem = () => new ListView()
+            {
+                showAddRemoveFooter = true,
+                allowAdd = true,
+                allowRemove = true,
+
+            },
+            bindItem = (e, i) =>
+            {
+                Debug.Log("Animation sub object: " + sObj.FindProperty("animations").GetArrayElementAtIndex(i).displayName);
+                Debug.Log("Animation sub object path: " + sObj.FindProperty("animations").GetArrayElementAtIndex(i).propertyPath);
+                
+                (e as ListView).makeItem = () => new ObjectField()
+                {
+                    objectType = typeof(AnimationClip)
+                };
+
+                (e as ListView).itemsSource = at.animations[i].innerList;
+                (e as ListView).bindingPath = sObj.FindProperty("animations").GetArrayElementAtIndex(i).propertyPath;
+
+                (e as ListView).bindItem = (e2, i2) =>
+                {
+                    (e2 as ObjectField).label = "Element " + i2.ToString();
+                    
+                };
+
+                sObj.ApplyModifiedProperties();
+            }
+            */
         };
-
-
-
-        
 
         // Add fields to box
         animBox.Add(animLabel);
         animBox.Add(animList);
 
+        // Box for animations
+        Box activeFrameBox = new Box();
+        Label activeFrameLabel = new Label("Active frames");
+        activeFrameLabel.style.fontSize = h2;
+
+        ListView activeFrameList = new ListView()
+        {
+            bindingPath = "activeInactiveFrames",
+            showAddRemoveFooter = true,
+            allowAdd = true,
+            allowRemove = true,
+
+            virtualizationMethod = CollectionVirtualizationMethod.FixedHeight,
+            fixedItemHeight = 100.0f,
+        };
+
+        activeFrameBox.Add(activeFrameLabel);
+        activeFrameBox.Add(activeFrameList);
+
         // Add the elements to inspector object
         myInspector.Add(statBox);
         myInspector.Add(hurtboxBox);
         myInspector.Add(animBox);
+        myInspector.Add(activeFrameBox);
 
         // Return the finished Inspector UI.
         return myInspector;

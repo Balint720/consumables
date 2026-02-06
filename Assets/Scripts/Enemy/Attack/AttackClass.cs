@@ -85,7 +85,7 @@ public class AttackClass : ScriptableObject
     public int damage;
     public float knockback;
     public List<string> hurtboxes;
-    [SerializeField] public List<ListWrapper<AnimationClip>> animations;
+    public List<ListWrapper<AnimationClip>> animations;
     public AnimationClip testAnimation;
     public List<ListWrapper<int>> activeInactiveFrames;
 

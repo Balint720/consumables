@@ -386,8 +386,11 @@ public abstract class EntityClass : MonoBehaviour, Damageable
             currGravVec -= gravComponent;
         }
 
-        DebugText.text = "Acceleration vector: " + accel.ToString();
-        DebugText.text += "\nGravity vector: " + currGravVec.ToString();
+        if (DebugText != null)
+        {
+            DebugText.text = "Acceleration vector: " + accel.ToString();
+            DebugText.text += "\nGravity vector: " + currGravVec.ToString();
+        }
 
         // Apply movement
         rigBod.AddForce(accel, ForceMode.VelocityChange);
