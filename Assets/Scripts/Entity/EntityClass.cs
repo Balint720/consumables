@@ -168,6 +168,7 @@ public abstract class EntityClass : MonoBehaviour, Damageable
     protected Transform modelTrans;                             // Transform of model
     protected Dictionary<string, Transform> modelChildTrans;    // Transforms of parts of model
     protected Dictionary<string, Collider> hitboxes;
+    protected Dictionary<string, Collider> hurtboxes;
 
     // Static variables
     protected static float maxRotationDegreesBeforeMove = 20.0f;
@@ -209,6 +210,7 @@ public abstract class EntityClass : MonoBehaviour, Damageable
 
         modelChildTrans = new Dictionary<string, Transform>();
         hitboxes = new Dictionary<string, Collider>();
+        hurtboxes = new Dictionary<string, Collider>();
 
         for (int i = 0; i < transes.Count(); i++)
         {
@@ -232,7 +234,16 @@ public abstract class EntityClass : MonoBehaviour, Damageable
         {
             if (cols[i].name != name)
             {
-                hitboxes.Add(cols[i].name, cols[i]);
+                if (cols[i].name.Contains("Hitbox"))
+                {
+                    hitboxes.Add(cols[i].name, cols[i]);
+                }
+                else if (cols[i].name.Contains("Hurtbox"))
+                {
+                    hurtboxes.Add(cols[i].name, cols[i]);
+                    Debug.Log("Added hurtbox " + cols[i].name);
+                }
+                
             }
         }
 
@@ -549,6 +560,17 @@ public abstract class EntityClass : MonoBehaviour, Damageable
         {
             rotation += incVec;
             yield return null;
+        }
+    }
+
+    // Hurtbox methods
+    public void ToggleHurtboxState(string hurtboxName)
+    {
+        Debug.Log("Trying to toggle " + hurtboxName + "...");
+        if (hurtboxes[hurtboxName] != null)
+        {
+            Debug.Log("Toggled " + hurtboxName + "!");
+            hurtboxes[hurtboxName].enabled = !hurtboxes[hurtboxName].enabled;
         }
     }
 }
