@@ -9,4 +9,12 @@ public partial class EnemyBlade : EnemyBase
     float weaponKnockbackMod;
 
     [SerializeField] List<AttackClass> attacks;
+
+    protected override void Update()
+    {
+        base.Update();
+
+        // Animations
+        
+    }
 }

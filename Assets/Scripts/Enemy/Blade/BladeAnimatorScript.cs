@@ -1,3 +1,4 @@
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class BladeAnimatorScript : MonoBehaviour
@@ -8,7 +9,12 @@ public class BladeAnimatorScript : MonoBehaviour
     void Start()
     {
         ent = GetComponentInParent<EntityClass>();
-        Debug.Log("Found entity");
+        if (ent == null)
+        {
+            Debug.Log(gameObject.name + "couldn't find parent entity");
+            Destroy(this);
+        }
+        
     }
 
     void ToggleHurtboxOnEntity(string hurtboxName)
