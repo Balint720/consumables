@@ -12,6 +12,13 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Rendering;
 
+[System.Serializable]
+public struct Attack
+{
+    public int id;
+    public AttackParams stats;
+}
+
 public partial class EnemyBase : EntityClass
 {
     SphereCollider detectionSphere;
@@ -32,6 +39,9 @@ public partial class EnemyBase : EntityClass
 
     // Debug
     GameObject[] DebugSpheres;
+
+    // Attacks
+    [SerializeField] List<Attack> attacks;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     override protected void Start()

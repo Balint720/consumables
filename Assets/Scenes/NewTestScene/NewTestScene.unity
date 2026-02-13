@@ -1078,6 +1078,22 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 400638061537989373, guid: dfb1da47610540249bb99c5e5380ed4a, type: 3}
+      propertyPath: attacks.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 400638061537989373, guid: dfb1da47610540249bb99c5e5380ed4a, type: 3}
+      propertyPath: attacks.Array.data[1].id
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 400638061537989373, guid: dfb1da47610540249bb99c5e5380ed4a, type: 3}
+      propertyPath: attacks.Array.data[0].stats
+      value: 
+      objectReference: {fileID: 11400000, guid: 97863cbc323581c4c8882223a2d69660, type: 2}
+    - target: {fileID: 400638061537989373, guid: dfb1da47610540249bb99c5e5380ed4a, type: 3}
+      propertyPath: attacks.Array.data[1].stats
+      value: 
+      objectReference: {fileID: 11400000, guid: 97863cbc323581c4c8882223a2d69660, type: 2}
     - target: {fileID: 847739525731190646, guid: dfb1da47610540249bb99c5e5380ed4a, type: 3}
       propertyPath: m_Name
       value: Enemy_Blade
@@ -1104,7 +1120,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1808506455371677059, guid: dfb1da47610540249bb99c5e5380ed4a, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 33.41
+      value: 34.67
       objectReference: {fileID: 0}
     - target: {fileID: 1808506455371677059, guid: dfb1da47610540249bb99c5e5380ed4a, type: 3}
       propertyPath: m_LocalPosition.y
@@ -1112,7 +1128,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1808506455371677059, guid: dfb1da47610540249bb99c5e5380ed4a, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 14.67
+      value: 11.68
       objectReference: {fileID: 0}
     - target: {fileID: 1808506455371677059, guid: dfb1da47610540249bb99c5e5380ed4a, type: 3}
       propertyPath: m_LocalRotation.w

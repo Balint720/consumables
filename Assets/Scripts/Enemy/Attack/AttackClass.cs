@@ -79,7 +79,7 @@ public class ListWrapper<T> : IList<T>
 
 
 // Use the CreateAssetMenu attribute to allow creating instances of this ScriptableObject from the Unity Editor.
-[CreateAssetMenu(fileName = "Attack", menuName = "ScriptableObjects/Attack", order = 1)]
+[CreateAssetMenu(fileName = "Attack", menuName = "Scriptable Objects/Attack", order = 1)]
 public class AttackClass : ScriptableObject
 {
     public int damage;

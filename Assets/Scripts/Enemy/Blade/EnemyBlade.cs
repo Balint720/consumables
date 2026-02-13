@@ -8,7 +8,6 @@ public partial class EnemyBlade : EnemyBase
     float projSpeedMod;
     float weaponKnockbackMod;
 
-    [SerializeField] List<AttackClass> attacks;
 
     protected override void Update()
     {
